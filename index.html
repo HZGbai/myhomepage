@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HZGbai 服务导航</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #0f0f1a;
+            color: #e0e0ff;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            padding: 2rem;
+        }
+        .container {
+            text-align: center;
+            max-width: 800px;
+            width: 100%;
+        }
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            background: #818cf8;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .subtitle {
+            font-size: 1.1rem;
+            color: #94a3b8;
+            margin-bottom: 3rem;
+        }
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .card {
+            background: rgba(30,30,50,0.6);
+            border: 1px solid rgba(99,102,241,0.2);
+            border-radius: 16px;
+            padding: 2rem;
+            text-align: left;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+        .card:hover {
+            border-color: rgba(99,102,241,0.5);
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(99,102,241,0.15);
+        }
+        .card-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1rem;
+        }
+        .card-mail .card-icon { background: rgba(99,102,241,0.15); }
+        .card-captcha .card-icon { background: rgba(139,92,246,0.15); }
+        .card h2 {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        .card-mail h2 { color: #c7d2fe; }
+        .card-captcha h2 { color: #ddd6fe; }
+        .card p {
+            font-size: 0.9rem;
+            color: #94a3b8;
+            line-height: 1.5;
+        }
+        .card-link {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            margin-top: 1rem;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        .card-mail .card-link { color: #818cf8; }
+        .card-captcha .card-link { color: #a78bfa; }
+        .tbc {
+            color: #64748b;
+            font-size: 0.9rem;
+            margin: 2rem 0;
+            letter-spacing: 0.1em;
+        }
+        footer {
+            color: #475569;
+            font-size: 0.8rem;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>欢迎来到 HZGbai 服务导航</h1>
+        <p class="subtitle">探索我们的服务，体验简洁与高效的数字生活</p>
+
+        <div class="cards">
+            <a href="https://mail.hzgbai.dpdns.org" target="_blank" class="card card-mail">
+                <div class="card-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#818cf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+                        <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
+                    </svg>
+                </div>
+                <h2>私人邮箱服务</h2>
+                <p>安全、私密的个人邮件收发平台，保护您的通信隐私</p>
+                <div class="card-link">
+                    <span>mail.hzgbai.dpdns.org</span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M7 17 17 7"></path>
+                        <path d="M7 7h10v10"></path>
+                    </svg>
+                </div>
+            </a>
+
+            <a href="https://captcha.hzgbai.dpdns.org" target="_blank" class="card card-captcha">
+                <div class="card-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                        <path d="m9 12 2 2 4-4"></path>
+                    </svg>
+                </div>
+                <h2>验证码 Demo</h2>
+                <p>交互式验证码演示系统，展示多种验证方式与安全防护</p>
+                <div class="card-link">
+                    <span>captcha.hzgbai.dpdns.org</span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M7 17 17 7"></path>
+                        <path d="M7 7h10v10"></path>
+                    </svg>
+                </div>
+            </a>
+        </div>
+
+        <p class="tbc">To be continued</p>
+
+        <footer>Powered by Cloudflare</footer>
+    </div>
+</body>
+</html>
