@@ -10,33 +10,102 @@
         * {
             margin: 0;
             padding: 0;
+            box-sizing: border-box;
         }
         body {
             min-height: 100vh;
+            display: -webkit-box;
+            display: -ms-flexbox;
             display: flex;
+            -webkit-box-align: center;
+            -ms-flex-align: center;
             align-items: center;
+            -webkit-box-pack: center;
+            -ms-flex-pack: center;
             justify-content: center;
             background-color: #f8f9fa;
-            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            padding: 1rem;
+            margin: 0;
         }
-        .message {
+        .container {
+            text-align: center;
+            max-width: 600px;
+            width: 100%;
+        }
+        .error-icon {
+            font-size: 5rem;
+            line-height: 1.2;
+            color: #dc3545;
+            margin-bottom: 1.2rem;
+            display: inline-block;
+        }
+        .main-message {
             font-size: 1.8rem;
-            font-weight: 400;
+            font-weight: 500;
             color: #1e293b;
             letter-spacing: 0.02em;
-            text-align: center;
-            padding: 1rem 2rem;
-            line-height: 1.4;
+            margin-bottom: 0.5rem;
+        }
+        .sub-message {
+            font-size: 1.1rem;
+            font-weight: 400;
+            color: #475569;
+            margin-bottom: 0.25rem;
+            line-height: 1.6;
+        }
+        .feedback-message {
+            font-size: 1.1rem;
+            font-weight: 400;
+            color: #475569;
+            margin-top: 0.25rem;
+            line-height: 1.6;
+        }
+        .feedback-message a {
+            color: #2563eb;
+            text-decoration: none;
+            border-bottom: 1px dotted #2563eb;
+        }
+        .feedback-message a:hover {
+            color: #1d4ed8;
+            border-bottom-color: #1d4ed8;
+        }
+        .feedback-message a:focus-visible {
+            outline: 2px solid #2563eb;
+            outline-offset: 2px;
         }
         @media (max-width: 480px) {
-            .message {
-                font-size: 1.4rem;
-                padding: 0.5rem 1rem;
+            .error-icon {
+                font-size: 3.8rem;
             }
+            .main-message {
+                font-size: 1.5rem;
+            }
+            .sub-message,
+            .feedback-message {
+                font-size: 1rem;
+            }
+        }
+        .container {
+            display: block;
+        }
+        .error-icon,
+        .main-message,
+        .sub-message,
+        .feedback-message {
+            display: block;
         }
     </style>
 </head>
 <body>
-    <div class="message">This page is temporarily unavailable.</div>
+    <div class="container">
+        <span class="error-icon" aria-hidden="true">⚠️</span>
+        <div class="main-message">Sorry, this page is temporarily unavailable.</div>
+        <div class="sub-message">Waiting for a while may resolve the issue.</div>
+        <div class="feedback-message">
+            If you would like to send us feedback, please email us at
+            <a href="mailto:admin@hzgbai.dpdns.org">admin@hzgbai.dpdns.org</a>. Thank you.
+        </div>
+    </div>
 </body>
 </html>
