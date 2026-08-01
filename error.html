@@ -3,23 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>页面提示</title>
+    <title>Sorry</title>
     <style>
-        /* 重置默认边距，使页面完全干净 */
         * {
             margin: 0;
             padding: 0;
         }
-        /* 让 body 占满整个视口，并使用 flex 居中内容 */
         body {
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            background-color: #f8f9fa; /* 柔和的背景色，不影响文字阅读 */
+            background-color: #f8f9fa;
             font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
         }
-        /* 提示文字样式：清晰、庄重、居中 */
         .message {
             font-size: 1.8rem;
             font-weight: 400;
@@ -27,12 +24,11 @@
             letter-spacing: 0.02em;
             text-align: center;
             padding: 1rem 2rem;
-            background: transparent; /* 无背景框，只有纯文字 */
+            background: transparent;
             border-radius: 0;
             box-shadow: none;
             line-height: 1.4;
         }
-        /* 针对小屏幕做细微调整 */
         @media (max-width: 480px) {
             .message {
                 font-size: 1.4rem;
@@ -42,7 +38,6 @@
     </style>
 </head>
 <body>
-    <!-- 页面上唯一的一行字 -->
-    <div class="message">此页面暂不可用</div>
+    <div class="message">This page is temporarily unavailable.</div>
 </body>
 </html>
