@@ -36,7 +36,7 @@
         }
         .close-btn:hover { background: rgba(255,255,255,0.1); color: var(--text); }
         
-        /* ✅ 修复：状态容器允许内容撑开高度 */
+        /* ✅ 修复：状态容器允许内容撑开高度，不再隐藏溢出 */
         .status-wrapper { height: 0; overflow: visible; transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease; opacity: 0; margin-top: 0; }
         .status-wrapper.show { height: auto; opacity: 1; margin-top: 12px; }
         
@@ -224,7 +224,7 @@ async function getFile() {
                     <strong>${j.filename}</strong>
                     <button class="close-btn" onclick="this.parentElement.parentElement.remove()" title="关闭">×</button>
                 </div>
-                <a href="${j.download_url}" target="_blank">️ 点击下载文件</a>
+                <a href="${j.download_url}" target="_blank">⬇️ 点击下载文件</a>
                 <span class="result-link">${j.download_url}</span>
             </div>`;
     } catch(e) { 
@@ -280,7 +280,7 @@ async function createToken() {
         
         const j = await r.json();
         const sid = 'sec_' + Date.now();
-        showStatus('token_out', `✅ 创建成功!<br>ID: <code>${j.key_id}</code><div class="secret-row">Secret: <span id="${sid}" style="font-family:monospace;background:var(--bg);padding:3px 8px;border-radius:6px;border:1px solid var(--border);">••••••••••••••••</span> <button class="toggle-btn" onclick="toggleSec('${sid}','${j.secret_key}',this)">显示</button></div><span class="hint">️ 请立即保存 Secret，关闭后将无法再次查看！</span>`, 'success');
+        showStatus('token_out', `✅ 创建成功!<br>ID: <code>${j.key_id}</code><div class="secret-row">Secret: <span id="${sid}" style="font-family:monospace;background:var(--bg);padding:3px 8px;border-radius:6px;border:1px solid var(--border);">••••••••••••••••</span> <button class="toggle-btn" onclick="toggleSec('${sid}','${j.secret_key}',this)">显示</button></div><span class="hint">⚠️ 请立即保存 Secret，关闭后将无法再次查看！</span>`, 'success');
         loadTokens(); 
     } catch(e) { showStatus('token_out', `创建异常: ${e.message}`, 'error'); }
 }
