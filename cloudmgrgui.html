@@ -119,6 +119,12 @@
             box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.15); 
         }
 
+        /* 按钮组容器 */
+        .btn-group {
+            display: flex;
+            gap: 12px;
+        }
+
         /* 主按钮样式 */
         button { 
             width: 100%; 
@@ -153,6 +159,21 @@
             cursor: not-allowed; 
             filter: grayscale(0.6); 
             box-shadow: none;
+        }
+
+        /* 次级/清空按钮样式 */
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: var(--muted);
+            box-shadow: none;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: rgba(239, 68, 68, 0.15);
+            border-color: rgba(239, 68, 68, 0.4);
+            color: #fca5a5;
+            box-shadow: 0 4px 14px rgba(239, 68, 68, 0.2);
         }
 
         /* 危险类按钮 */
@@ -403,6 +424,7 @@
             h2 { font-size: 1.1rem; } 
             input, button { padding: 11px 14px; font-size: 0.9rem; }
             th, td { padding: 10px 8px; }
+            .btn-group { flex-direction: column; }
         }
     </style>
 </head>
@@ -416,7 +438,11 @@
             <label>Dashboard JWT_SECRET</label>
             <input type="password" id="gen_secret" placeholder="输入密钥以生成令牌">
             
-            <button id="gen_btn" onclick="generateAndValidate()">生成并验证 JWT</button>
+            <div class="btn-group">
+                <button id="gen_btn" onclick="generateAndValidate()">生成并验证 JWT</button>
+                <button id="clear_btn" class="btn-secondary" style="display:none;" onclick="clearJwt()">🔒 退出登录 (擦除 JWT)</button>
+            </div>
+
             <div class="status-wrapper" id="auth_status_wrap">
                 <div id="auth_status"></div>
             </div>
@@ -457,7 +483,7 @@ async function sha256(str) {
 
 function getApiBase() { return document.getElementById('api_base').value.trim().replace(/\/$/, ''); }
 
-// ✅ 显示状态卡片函数
+// 显示状态卡片函数
 function showStatus(id, msg, type = 'success') {
     const wrapId = id.replace('_status', '_status_wrap').replace('_out', '_out_wrap');
     const wrap = document.getElementById(wrapId);
@@ -472,8 +498,26 @@ function showStatus(id, msg, type = 'success') {
 }
 
 // -------------------------------------------------------------
-// 🌟 核心新增：HTTP 状态码与异常智能解析工具
+// 🌟 擦除 JWT 与退出登录功能
 // -------------------------------------------------------------
+function clearJwt() {
+    // 1. 擦除内存中的 JWT
+    sessionJwt = null;
+
+    // 2. 清空敏感输入框内容
+    document.getElementById('gen_secret').value = '';
+
+    // 3. 隐藏不需要展示的卡片与退出按钮
+    document.getElementById('download_card').style.display = 'none';
+    document.getElementById('token_card').style.display = 'none';
+    document.getElementById('clear_btn').style.display = 'none';
+
+    // 4. 重置状态显示与表格
+    showStatus('auth_status', '🔒 已退出登录，内存中的 JWT 令牌已成功擦除。', 'success');
+    document.getElementById('token_table').innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:20px;">请先完成认证</td></tr>';
+}
+
+// HTTP 状态码与异常智能解析工具
 async function parseResponseError(res, defaultContext = '请求失败') {
     let serverErr = '';
     try {
@@ -510,7 +554,6 @@ function parseFetchError(e, defaultContext = '网络连接异常') {
     }
     return `❌ ${defaultContext}: ${e.message}`;
 }
-// -------------------------------------------------------------
 
 async function generateAndValidate() {
     const btn = document.getElementById('gen_btn');
@@ -536,6 +579,7 @@ async function generateAndValidate() {
             
             document.getElementById('download_card').style.display = 'block';
             document.getElementById('token_card').style.display = 'block';
+            document.getElementById('clear_btn').style.display = 'inline-flex'; // 显示擦除按钮
             loadTokens();
         } else {
             const errHtml = await parseResponseError(res, '认证失败');
@@ -649,7 +693,7 @@ async function createToken() {
 function toggleSec(id, val, btn) {
     const el = document.getElementById(id);
     if (btn.textContent === '显示') { el.textContent = val; btn.textContent = '隐藏'; } 
-    else { el.textContent = '••••••••••••••••'; btn.textContent = '隐藏'; }
+    else { el.textContent = '••••••••••••••••'; btn.textContent = '显示'; }
 }
 
 async function deleteToken(id) {
