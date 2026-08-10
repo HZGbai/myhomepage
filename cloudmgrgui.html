@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HZGbai Storage Manager</title>
+    <style>
+        body { background: #0f172a; color: #e2e8f0; font-family: sans-serif; padding: 2rem; max-width: 600px; margin: 0 auto; }
+        .card { background: #1e293b; padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem; }
+        h2 { color: #38bdf8; margin-top: 0; font-size: 1.2rem; }
+        input, button { width: 100%; padding: 10px; margin: 6px 0; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; box-sizing: border-box; }
+        button { background: #38bdf8; color: #0f172a; font-weight: bold; cursor: pointer; border: none; margin-top: 10px; }
+        button:hover { opacity: 0.9; }
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        th, td { text-align: left; padding: 8px; border-bottom: 1px solid #334155; font-size: 0.9rem; }
+        th { color: #94a3b8; }
+        .del-btn { background: #ef4444; color: #fff; width: auto; padding: 4px 12px; margin: 0; font-size: 0.8rem; }
+        .hint { font-size: 0.75rem; color: #64748b; margin-top: 4px; }
+        a { color: #38bdf8; word-break: break-all; }
+        .status { padding: 8px; border-radius: 6px; margin-top: 8px; font-size: 0.85rem; }
+        .success { background: rgba(74, 222, 128, 0.1); color: #4ade80; }
+        .error { background: rgba(248, 113, 113, 0.1); color: #f87171; }
+        code { background: #0f172a; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <!-- 🔧 连接配置 -->
+    <div class="card">
+        <h2>🔌 Connection Settings</h2>
+        <input type="text" id="api_base" placeholder="API Base URL (e.g., https://cloud.hzgbai.dpdns.org)" value="https://cloud.hzgbai.dpdns.org">
+        <input type="password" id="jwt_input" placeholder="Paste your JWT token here">
+        <button onclick="validateAndSaveJwt()">Validate & Save JWT</button>
+        <div id="conn_status"></div>
+    </div>
+
+    <div class="card">
+        <h2>🔗 Get Download Link</h2>
+        <input type="text" id="key_id" placeholder="Token ID (e.g., a3f)">
+        <input type="password" id="secret_key" placeholder="Secret Key (64 hex chars)">
+        <input type="text" id="fname" placeholder="Filename (e.g., model.bin)">
+        <button onclick="getFile()">Get Link</button>
+        <div id="out"></div>
+    </div>
+
+    <div class="card">
+        <h2> Token Management</h2>
+        <input type="text" id="new_desc" placeholder="New Token Description">
+        <button onclick="createToken()">Create Token</button>
+        <div id="token_out"></div>
+        <table>
+            <thead><tr><th>ID</th><th>Description</th><th>Action</th></tr></thead>
+            <tbody id="token_table"><tr><td colspan="3" style="text-align:center;color:#64748b;">Enter and validate JWT to load tokens</td></tr></tbody>
+        </table>
+    </div>
+
+<script>
+// ==================== 🔐 纯内存 JWT 会话管理 ====================
+let sessionJwt = null; // 页面关闭/刷新即销毁，不写入任何存储
+
+function getApiBase() {
+    return document.getElementById('api_base').value.trim().replace(/\/$/, '');
+}
+
+async function validateAndSaveJwt() {
+    const jwtInput = document.getElementById('jwt_input');
+    const statusEl = document.getElementById('conn_status');
+    const rawJwt = jwtInput.value.trim();
+    
+    if (!rawJwt) {
+        statusEl.innerHTML = '<div class="status error">JWT cannot be empty</div>';
+        return;
+    }
+    
+    // 简单格式校验
+    const parts = rawJwt.split('.');
+    if (parts.length !== 3) {
+        statusEl.innerHTML = '<div class="status error">Invalid JWT format (expected 3 segments)</div>';
+        return;
+    }
+    
+    try {
+        // 尝试调用一个轻量接口验证 JWT 有效性
+        const res = await fetch(`${getApiBase()}/api/tokens/list`, {
+            headers: { 'Authorization': 'Bearer ' + rawJwt }
+        });
+        
+        if (res.ok || res.status === 401) {
+            // 401 说明 JWT 格式合法但权限不足，200 说明完全有效
+            sessionJwt = rawJwt;
+            jwtInput.type = 'password'; // 输入后自动隐藏
+            statusEl.innerHTML = `<div class="status success">✅ JWT saved in memory (expires on page close)<br><span class="hint">Status: ${res.status === 200 ? 'Valid' : 'Format valid but may lack permissions'}</span></div>`;
+            loadTokens();
+        } else {
+            statusEl.innerHTML = '<div class="status error">Server rejected this JWT (' + res.status + ')</div>';
+        }
+    } catch (e) {
+        statusEl.innerHTML = '<div class="status error">Connection failed: ' + e.message + '</div>';
+    }
+}
+
+// 获取当前有效的 JWT，未验证则抛出错误
+function requireJwt() {
+    if (!sessionJwt) throw new Error('Please paste and validate your JWT first');
+    return sessionJwt;
+}
+
+// 页面卸载时主动清空（双重保险）
+window.addEventListener('beforeunload', () => { sessionJwt = null; });
+// ======================================================================
+
+function showStatus(elementId, message, isError = false) {
+    document.getElementById(elementId).innerHTML = 
+        `<div class="status ${isError ? 'error' : 'success'}">${message}</div>`;
+}
+
+async function getFile() {
+    const out = document.getElementById('out');
+    const data = {
+        key_id: document.getElementById('key_id').value.trim(),
+        secret_key: document.getElementById('secret_key').value.trim(),
+        filename: document.getElementById('fname').value.trim()
+    };
+    
+    if (!data.key_id || !data.secret_key || !data.filename) {
+        showStatus('out', 'Please fill in all fields', true);
+        return;
+    }
+    
+    out.innerHTML = '<div class="status">Loading...</div>';
+    try {
+        const res = await fetch(`${getApiBase()}/api/getfile`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        const json = await res.json();
+        
+        if (res.ok) {
+            out.innerHTML = `
+                <div class="status success">
+                    <strong>${json.filename}</strong><br>
+                    <a href="${json.download_url}" target="_blank">Download File</a><br>
+                    <span class="hint">${json.download_url}</span>
+                </div>`;
+        } else {
+            showStatus('out', json.error || 'Unknown error', true);
+        }
+    } catch (e) {
+        showStatus('out', 'Network error: ' + e.message, true);
+    }
+}
+
+async function loadTokens() {
+    try {
+        const jwt = requireJwt();
+        const res = await fetch(`${getApiBase()}/api/tokens/list`, {
+            headers: {'Authorization': 'Bearer ' + jwt}
+        });
+        
+        if (!res.ok) {
+            const err = await res.json();
+            showStatus('token_out', err.error || 'Auth failed (' + res.status + ')', true);
+            return;
+        }
+        
+        const list = await res.json();
+        const tbody = document.getElementById('token_table');
+        
+        if (list.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#64748b;">No tokens found</td></tr>';
+            return;
+        }
+        
+        tbody.innerHTML = list.map(t => `
+            <tr>
+                <td><code>${t.key_id}</code></td>
+                <td>${t.description}</td>
+                <td><button class="del-btn" onclick="deleteToken('${t.key_id}')">Delete</button></td>
+            </tr>
+        `).join('');
+    } catch (e) {
+        showStatus('token_out', e.message, true);
+    }
+}
+
+async function createToken() {
+    const desc = document.getElementById('new_desc').value.trim();
+    if (!desc) {
+        showStatus('token_out', 'Description is required', true);
+        return;
+    }
+    
+    try {
+        const jwt = requireJwt();
+        const res = await fetch(`${getApiBase()}/api/token/add`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + jwt
+            },
+            body: JSON.stringify({description: desc})
+        });
+        
+        const json = await res.json();
+        if (res.ok) {
+            showStatus('token_out', 
+                `✅ Created!<br>ID: <code>${json.key_id}</code><br>Secret: <code>${json.secret_key}</code><br><span class="hint">️ Save the secret now — it will never be shown again!</span>`
+            );
+            loadTokens();
+        } else {
+            showStatus('token_out', json.error, true);
+        }
+    } catch (e) {
+        showStatus('token_out', e.message, true);
+    }
+}
+
+async function deleteToken(id) {
+    if (!confirm(`Delete token "${id}"? This cannot be undone.`)) return;
+    
+    try {
+        const jwt = requireJwt();
+        const res = await fetch(`${getApiBase()}/api/token/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + jwt
+            },
+            body: JSON.stringify({key_id: id})
+        });
+        
+        const json = await res.json();
+        if (res.ok) {
+            loadTokens();
+        } else {
+            alert(json.error || 'Delete failed');
+        }
+    } catch (e) {
+        alert(e.message);
+    }
+}
+</script>
+</body>
+</html>
