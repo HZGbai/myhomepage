@@ -26,27 +26,35 @@
         .btn-danger { background: rgba(239, 68, 68, 0.15); color: var(--danger); width: auto; padding: 6px 14px; font-size: 0.8rem; border: 1px solid rgba(239, 68, 68, 0.2); }
         .btn-danger:hover { background: var(--danger); color: white; }
         
-        /* 关闭按钮样式 */
+        /* ✅ 修复：关闭按钮改用 Flex 布局，不再绝对定位 */
         .close-btn { 
-            position: absolute; top: 16px; right: 16px; 
             background: transparent; border: none; color: var(--muted); 
-            width: 32px; height: 32px; padding: 0; font-size: 1.2rem; 
+            width: 28px; height: 28px; padding: 0; font-size: 1.1rem; 
             display: flex; align-items: center; justify-content: center; 
-            border-radius: 8px; cursor: pointer; transition: all 0.2s; z-index: 10; 
+            border-radius: 6px; cursor: pointer; transition: all 0.2s; 
+            flex-shrink: 0; margin-left: 12px; align-self: flex-start;
         }
         .close-btn:hover { background: rgba(255,255,255,0.1); color: var(--text); }
         
-        /* 状态提示容器动画 */
-        .status-wrapper { height: 0; overflow: hidden; transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease; opacity: 0; margin-top: 0; }
+        /* ✅ 修复：状态容器允许内容撑开高度 */
+        .status-wrapper { height: 0; overflow: visible; transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease; opacity: 0; margin-top: 0; }
         .status-wrapper.show { height: auto; opacity: 1; margin-top: 12px; }
-        .status { padding: 12px 16px; border-radius: 10px; font-size: 0.85rem; line-height: 1.5; word-break: break-word; animation: fadeIn 0.3s ease; position: relative; padding-right: 40px; }
+        
+        /* ✅ 修复：状态框使用 Flex 布局容纳关闭按钮 */
+        .status { 
+            padding: 12px 16px; border-radius: 10px; font-size: 0.85rem; line-height: 1.5; word-break: break-word; 
+            animation: fadeIn 0.3s ease; display: flex; align-items: flex-start; justify-content: space-between; 
+        }
+        .status > div:first-child { flex: 1; margin-right: 8px; } /* 文字区域自适应 */
+        
         .status.success { background: rgba(74, 222, 128, 0.1); color: var(--success); border-left: 3px solid var(--success); }
         .status.error { background: rgba(248, 113, 113, 0.1); color: var(--danger); border-left: 3px solid var(--danger); }
         .status.loading { background: rgba(56, 189, 248, 0.1); color: var(--primary); border-left: 3px solid var(--primary); }
         
         /* 下载结果持久化卡片 */
-        .result-card { margin-top: 16px; padding: 16px; background: rgba(56, 189, 248, 0.05); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 10px; animation: slideUp 0.3s ease; position: relative; padding-right: 48px; }
-        .result-card strong { color: var(--text); font-size: 1rem; display: block; margin-bottom: 8px; }
+        .result-card { margin-top: 16px; padding: 16px; background: rgba(56, 189, 248, 0.05); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 10px; animation: slideUp 0.3s ease; position: relative; }
+        .result-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+        .result-card strong { color: var(--text); font-size: 1rem; display: block; }
         .result-card a { color: var(--primary); text-decoration: none; font-weight: 500; display: inline-block; margin-bottom: 8px; }
         .result-card a:hover { text-decoration: underline; }
         .result-link { font-size: 0.75rem; color: var(--muted); word-break: break-all; font-family: monospace; background: var(--bg); padding: 8px; border-radius: 6px; display: block; border: 1px solid var(--border); }
@@ -78,7 +86,7 @@
 </head>
 <body>
     <div class="container">
-        <!-- 1. 认证模块 (始终显示) -->
+        <!-- 1. 认证模块 -->
         <div class="card">
             <h2>🔑 JWT 认证</h2>
             <label>API 地址</label>
@@ -101,7 +109,6 @@
             <input type="text" id="fname" placeholder="文件名">
             <button onclick="getFile()">获取链接</button>
             
-            <!-- 下载结果独立区域 -->
             <div id="download_result"></div>
             
             <div class="status-wrapper" id="out_wrap"><div id="out"></div></div>
@@ -131,16 +138,18 @@ async function sha256(str) {
 
 function getApiBase() { return document.getElementById('api_base').value.trim().replace(/\/$/, ''); }
 
-// ✅ 统一状态显示函数：带关闭按钮，不自动消失
+// ✅ 修复：关闭按钮嵌入 Flex 容器，确保不溢出且可点击
 function showStatus(id, msg, type = 'success') {
     const wrapId = id.replace('_status', '_status_wrap').replace('_out', '_out_wrap');
     const wrap = document.getElementById(wrapId);
     const el = document.getElementById(id);
     if (!wrap || !el) return;
     
-    // 注入关闭按钮
+    // 将关闭按钮和内容包裹在 Flex 容器中
     const closeBtn = `<button class="close-btn" onclick="this.parentElement.parentElement.classList.remove('show')" title="关闭">×</button>`;
-    el.innerHTML = `<div class="status ${type}">${closeBtn}${type === 'loading' ? '<span class="loading-text">' + msg + '</span>' : msg}</div>`;
+    const content = type === 'loading' ? `<span class="loading-text">${msg}</span>` : msg;
+    
+    el.innerHTML = `<div class="status ${type}"><div>${content}</div>${closeBtn}</div>`;
     wrap.classList.add('show');
 }
 
@@ -166,7 +175,6 @@ async function generateAndValidate() {
             sessionJwt = jwt;
             showStatus('auth_status', `✅ 认证成功！令牌已保存至内存<br>状态: ${res.status === 200 ? '有效' : '格式正确但权限不足'}`, 'success');
             
-            // ✅ 验证成功后显示下方两个卡片
             document.getElementById('download_card').style.display = 'block';
             document.getElementById('token_card').style.display = 'block';
             loadTokens();
@@ -209,12 +217,14 @@ async function getFile() {
         }
         
         const j = await r.json();
-        // ✅ 下载链接使用独立卡片，带关闭按钮，不会自动消失
+        // ✅ 下载结果卡片也使用 Flex 头部布局
         resultDiv.innerHTML = `
             <div class="result-card">
-                <button class="close-btn" onclick="this.parentElement.remove()" title="关闭">×</button>
-                <strong>${j.filename}</strong>
-                <a href="${j.download_url}" target="_blank">⬇️ 点击下载文件</a>
+                <div class="result-card-header">
+                    <strong>${j.filename}</strong>
+                    <button class="close-btn" onclick="this.parentElement.parentElement.remove()" title="关闭">×</button>
+                </div>
+                <a href="${j.download_url}" target="_blank">️ 点击下载文件</a>
                 <span class="result-link">${j.download_url}</span>
             </div>`;
     } catch(e) { 
@@ -270,7 +280,6 @@ async function createToken() {
         
         const j = await r.json();
         const sid = 'sec_' + Date.now();
-        // ✅ Token 创建结果带关闭按钮，Secret 默认隐藏
         showStatus('token_out', `✅ 创建成功!<br>ID: <code>${j.key_id}</code><div class="secret-row">Secret: <span id="${sid}" style="font-family:monospace;background:var(--bg);padding:3px 8px;border-radius:6px;border:1px solid var(--border);">••••••••••••••••</span> <button class="toggle-btn" onclick="toggleSec('${sid}','${j.secret_key}',this)">显示</button></div><span class="hint">️ 请立即保存 Secret，关闭后将无法再次查看！</span>`, 'success');
         loadTokens(); 
     } catch(e) { showStatus('token_out', `创建异常: ${e.message}`, 'error'); }
