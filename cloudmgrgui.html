@@ -26,35 +26,41 @@
         .btn-danger { background: rgba(239, 68, 68, 0.15); color: var(--danger); width: auto; padding: 6px 14px; font-size: 0.8rem; border: 1px solid rgba(239, 68, 68, 0.2); }
         .btn-danger:hover { background: var(--danger); color: white; }
         
-        /* ✅ 修复：关闭按钮改用 Flex 布局，不再绝对定位 */
+        /* ✅ 修复：关闭按钮样式 */
         .close-btn { 
             background: transparent; border: none; color: var(--muted); 
-            width: 28px; height: 28px; padding: 0; font-size: 1.1rem; 
+            width: 28px; height: 28px; padding: 0; font-size: 1.2rem; line-height: 1;
             display: flex; align-items: center; justify-content: center; 
             border-radius: 6px; cursor: pointer; transition: all 0.2s; 
-            flex-shrink: 0; margin-left: 12px; align-self: flex-start;
+            flex-shrink: 0; margin-left: 12px;
         }
         .close-btn:hover { background: rgba(255,255,255,0.1); color: var(--text); }
         
-        /* ✅ 修复：状态容器允许内容撑开高度，不再隐藏溢出 */
-        .status-wrapper { height: 0; overflow: visible; transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease; opacity: 0; margin-top: 0; }
-        .status-wrapper.show { height: auto; opacity: 1; margin-top: 12px; }
+        /* ✅ 修复：状态容器改用 max-height + opacity，避免 height:0 导致的点击失效 */
+        .status-wrapper { 
+            max-height: 0; opacity: 0; overflow: hidden; 
+            transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease, margin 0.3s ease; 
+            margin-top: 0; 
+        }
+        .status-wrapper.show { 
+            max-height: 300px; opacity: 1; margin-top: 12px; overflow: visible; 
+        }
         
-        /* ✅ 修复：状态框使用 Flex 布局容纳关闭按钮 */
+        /* ✅ 修复：状态框内部使用 Flex 布局，确保文字和按钮在同一行且按钮可点击 */
         .status { 
             padding: 12px 16px; border-radius: 10px; font-size: 0.85rem; line-height: 1.5; word-break: break-word; 
             animation: fadeIn 0.3s ease; display: flex; align-items: flex-start; justify-content: space-between; 
         }
-        .status > div:first-child { flex: 1; margin-right: 8px; } /* 文字区域自适应 */
+        .status-content { flex: 1; margin-right: 8px; min-width: 0; } 
         
         .status.success { background: rgba(74, 222, 128, 0.1); color: var(--success); border-left: 3px solid var(--success); }
         .status.error { background: rgba(248, 113, 113, 0.1); color: var(--danger); border-left: 3px solid var(--danger); }
         .status.loading { background: rgba(56, 189, 248, 0.1); color: var(--primary); border-left: 3px solid var(--primary); }
         
         /* 下载结果持久化卡片 */
-        .result-card { margin-top: 16px; padding: 16px; background: rgba(56, 189, 248, 0.05); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 10px; animation: slideUp 0.3s ease; position: relative; }
-        .result-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
-        .result-card strong { color: var(--text); font-size: 1rem; display: block; }
+        .result-card { margin-top: 16px; padding: 16px; background: rgba(56, 189, 248, 0.05); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 10px; animation: slideUp 0.3s ease; }
+        .result-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+        .result-header strong { color: var(--text); font-size: 1rem; display: block; }
         .result-card a { color: var(--primary); text-decoration: none; font-weight: 500; display: inline-block; margin-bottom: 8px; }
         .result-card a:hover { text-decoration: underline; }
         .result-link { font-size: 0.75rem; color: var(--muted); word-break: break-all; font-family: monospace; background: var(--bg); padding: 8px; border-radius: 6px; display: block; border: 1px solid var(--border); }
@@ -116,7 +122,7 @@
 
         <!-- 3. Token管理模块 (验证后显示) -->
         <div class="card" id="token_card" style="display:none;">
-            <h2>🛠️ Token 管理</h2>
+            <h2>️ Token 管理</h2>
             <input type="text" id="new_desc" placeholder="新 Token 描述">
             <button onclick="createToken()">创建 Token</button>
             <div class="status-wrapper" id="token_out_wrap"><div id="token_out"></div></div>
@@ -149,7 +155,7 @@ function showStatus(id, msg, type = 'success') {
     const closeBtn = `<button class="close-btn" onclick="this.parentElement.parentElement.classList.remove('show')" title="关闭">×</button>`;
     const content = type === 'loading' ? `<span class="loading-text">${msg}</span>` : msg;
     
-    el.innerHTML = `<div class="status ${type}"><div>${content}</div>${closeBtn}</div>`;
+    el.innerHTML = `<div class="status ${type}"><div class="status-content">${content}</div>${closeBtn}</div>`;
     wrap.classList.add('show');
 }
 
@@ -182,7 +188,7 @@ async function generateAndValidate() {
             showStatus('auth_status', `❌ 验证失败 (${res.status})<br>请检查 SECRET 是否正确或是否已过期`, 'error');
         }
     } catch (e) {
-        showStatus('auth_status', `❌ 网络错误: ${e.message}<br>请检查 API 地址或 CORS 配置`, 'error');
+        showStatus('auth_status', ` 网络错误: ${e.message}<br>请检查 API 地址或 CORS 配置`, 'error');
     } finally {
         btn.disabled = false;
         btn.textContent = '生成并验证 JWT';
@@ -220,7 +226,7 @@ async function getFile() {
         // ✅ 下载结果卡片也使用 Flex 头部布局
         resultDiv.innerHTML = `
             <div class="result-card">
-                <div class="result-card-header">
+                <div class="result-header">
                     <strong>${j.filename}</strong>
                     <button class="close-btn" onclick="this.parentElement.parentElement.remove()" title="关闭">×</button>
                 </div>
