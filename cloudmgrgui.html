@@ -9,84 +9,71 @@
         * { box-sizing: border-box; margin: 0; padding: 0; outline: none; -webkit-tap-highlight-color: transparent; }
         body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; min-height: 100vh; display: flex; justify-content: center; padding: 20px; }
         .container { width: 100%; max-width: 600px; display: flex; flex-direction: column; gap: 20px; animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
-        
-        .card { background: var(--card); border-radius: 16px; padding: 24px; border: 1px solid var(--border); transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .card { background: var(--card); border-radius: 16px; padding: 24px; border: 1px solid var(--border); transition: transform 0.2s ease, box-shadow 0.2s ease; position: relative; }
         .card:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
-        
         h2 { font-size: 1.1rem; color: var(--primary); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
-        label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 6px; transition: color 0.2s; }
+        label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 6px; }
         input { width: 100%; padding: 12px 16px; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-size: 0.95rem; transition: all 0.2s; margin-bottom: 12px; }
         input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.1); }
-        
-        button { width: 100%; padding: 12px; background: var(--primary); color: #0f172a; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.95rem; position: relative; overflow: hidden; }
+        button { width: 100%; padding: 12px; background: var(--primary); color: #0f172a; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.95rem; }
         button:hover:not(:disabled) { filter: brightness(1.1); transform: scale(1.02); }
         button:active:not(:disabled) { transform: scale(0.98); }
         button:disabled { opacity: 0.6; cursor: not-allowed; filter: grayscale(0.5); }
-        
-        .btn-secondary { background: var(--border); color: var(--text); }
         .btn-danger { background: rgba(239, 68, 68, 0.15); color: var(--danger); width: auto; padding: 6px 14px; font-size: 0.8rem; border: 1px solid rgba(239, 68, 68, 0.2); }
         .btn-danger:hover { background: var(--danger); color: white; }
-        
-        /* 状态提示动画 */
+        .close-btn { position: absolute; top: 16px; right: 16px; background: transparent; border: none; color: var(--muted); width: 32px; height: 32px; padding: 0; font-size: 1.2rem; display: flex; align-items: center; justify-content: center; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+        .close-btn:hover { background: rgba(255,255,255,0.1); color: var(--text); }
         .status-wrapper { height: 0; overflow: hidden; transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease; opacity: 0; margin-top: 0; }
         .status-wrapper.show { height: auto; opacity: 1; margin-top: 12px; }
         .status { padding: 12px 16px; border-radius: 10px; font-size: 0.85rem; line-height: 1.5; word-break: break-word; animation: fadeIn 0.3s ease; }
         .status.success { background: rgba(74, 222, 128, 0.1); color: var(--success); border-left: 3px solid var(--success); }
         .status.error { background: rgba(248, 113, 113, 0.1); color: var(--danger); border-left: 3px solid var(--danger); }
         .status.loading { background: rgba(56, 189, 248, 0.1); color: var(--primary); border-left: 3px solid var(--primary); }
-        
+        .result-card { margin-top: 16px; padding: 16px; background: rgba(56, 189, 248, 0.05); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 10px; animation: slideUp 0.3s ease; position: relative; padding-right: 48px; }
+        .result-card strong { color: var(--text); font-size: 1rem; display: block; margin-bottom: 8px; }
+        .result-card a { color: var(--primary); text-decoration: none; font-weight: 500; display: inline-block; margin-bottom: 8px; }
+        .result-card a:hover { text-decoration: underline; }
+        .result-link { font-size: 0.75rem; color: var(--muted); word-break: break-all; font-family: monospace; background: var(--bg); padding: 8px; border-radius: 6px; display: block; border: 1px solid var(--border); }
         table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 0.9rem; }
         th, td { text-align: left; padding: 12px 10px; border-bottom: 1px solid var(--border); }
         th { color: var(--muted); font-weight: 500; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; }
         tr { transition: background 0.2s; }
         tr:hover td { background: rgba(255,255,255,0.02); }
-        
         code { background: var(--bg); padding: 3px 8px; border-radius: 6px; font-family: 'SF Mono', Monaco, monospace; font-size: 0.85rem; border: 1px solid var(--border); }
-        a { color: var(--primary); word-break: break-all; overflow-wrap: break-word; display: inline-block; max-width: 100%; transition: color 0.2s; }
-        a:hover { color: #7dd3fc; }
-        
         .hint { font-size: 0.75rem; color: var(--muted); margin-top: 6px; line-height: 1.4; }
         .secret-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
-        .toggle-btn { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 4px 10px; width: auto; font-size: 0.75rem; margin: 0; border-radius: 6px; }
+        .toggle-btn { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 4px 10px; width: auto; font-size: 0.75rem; margin: 0; border-radius: 6px; cursor: pointer; }
         .toggle-btn:hover { border-color: var(--primary); color: var(--primary); }
-        
         @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
         .loading-text { animation: pulse 1.5s infinite; }
-        
-        @media (max-width: 480px) { 
-            body { padding: 12px; } 
-            .card { padding: 18px; border-radius: 12px; } 
-            h2 { font-size: 1rem; } 
-            input, button { padding: 10px 14px; font-size: 0.9rem; }
-        }
+        @media (max-width: 480px) { body { padding: 12px; } .card { padding: 18px; border-radius: 12px; } h2 { font-size: 1rem; } input, button { padding: 10px 14px; font-size: 0.9rem; } }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="card">
-            <h2>🔑 JWT 认证</h2>
+            <h2> JWT 认证</h2>
             <label>API 地址</label>
             <input type="text" id="api_base" value="https://cloud.hzgbai.dpdns.org">
-            
             <label>Dashboard JWT_SECRET</label>
             <input type="password" id="gen_secret" placeholder="输入密钥以生成令牌">
-            
             <button id="gen_btn" onclick="generateAndValidate()">生成并验证 JWT</button>
             <div class="status-wrapper" id="auth_status_wrap"><div id="auth_status"></div></div>
         </div>
 
-        <div class="card" id="download_card" style="display:none; animation: slideUp 0.4s ease;">
+        <div class="card" id="download_card" style="display:none;">
             <h2> 获取下载链接</h2>
             <input type="text" id="key_id" placeholder="Token ID (如 a3f)">
             <input type="password" id="secret_key" placeholder="Secret Key (64位十六进制)">
             <input type="text" id="fname" placeholder="文件名">
             <button onclick="getFile()">获取链接</button>
+            <div id="download_result"></div>
             <div class="status-wrapper" id="out_wrap"><div id="out"></div></div>
         </div>
 
-        <div class="card" id="token_card" style="display:none; animation: slideUp 0.4s ease 0.1s backwards;">
+        <div class="card" id="token_card" style="display:none;">
             <h2>🛠️ Token 管理</h2>
             <input type="text" id="new_desc" placeholder="新 Token 描述">
             <button onclick="createToken()">创建 Token</button>
@@ -109,18 +96,13 @@ async function sha256(str) {
 
 function getApiBase() { return document.getElementById('api_base').value.trim().replace(/\/$/, ''); }
 
-// ✅ 统一状态显示：自动展开容器 + 10秒后自动收起
 function showStatus(id, msg, type = 'success') {
     const wrapId = id.replace('_status', '_status_wrap').replace('_out', '_out_wrap');
     const wrap = document.getElementById(wrapId);
     const el = document.getElementById(id);
-    
     if (!wrap || !el) return;
-    
     el.innerHTML = `<div class="status ${type}">${type === 'loading' ? '<span class="loading-text">' + msg + '</span>' : msg}</div>`;
     wrap.classList.add('show');
-    
-    // 非 loading 状态 10 秒后自动隐藏
     if (type !== 'loading') {
         setTimeout(() => {
             wrap.classList.remove('show');
@@ -132,26 +114,19 @@ function showStatus(id, msg, type = 'success') {
 async function generateAndValidate() {
     const btn = document.getElementById('gen_btn');
     const secret = document.getElementById('gen_secret').value.trim();
-    
     if (!secret) { showStatus('auth_status', '请输入 Dashboard JWT_SECRET', 'error'); return; }
-    
     btn.disabled = true;
     btn.textContent = '生成中...';
     showStatus('auth_status', '正在生成并验证...', 'loading');
-
     try {
         const h = btoa(JSON.stringify({alg:'HS256',typ:'JWT'}));
         const p = btoa(JSON.stringify({sub:'admin',exp:Math.floor(Date.now()/1000)+3600}));
         const sig = await sha256(h + '.' + p + secret);
         const jwt = h + '.' + p + '.' + sig;
-
         const res = await fetch(`${getApiBase()}/api/tokens/list`, { headers: { 'Authorization': 'Bearer ' + jwt } });
-        
         if (res.ok || res.status === 401) {
             sessionJwt = jwt;
             showStatus('auth_status', `✅ 认证成功！令牌已保存至内存<br>状态: ${res.status === 200 ? '有效' : '格式正确但权限不足'}`, 'success');
-            
-            // ✅ 认证成功后显示下方功能卡片
             document.getElementById('download_card').style.display = 'block';
             document.getElementById('token_card').style.display = 'block';
             loadTokens();
@@ -172,21 +147,29 @@ function requireJwt() {
 }
 
 async function getFile() {
-    const d = { 
-        key_id: document.getElementById('key_id').value.trim(), 
-        secret_key: document.getElementById('secret_key').value.trim(), 
-        filename: document.getElementById('fname').value.trim() 
-    };
+    const d = { key_id: document.getElementById('key_id').value.trim(), secret_key: document.getElementById('secret_key').value.trim(), filename: document.getElementById('fname').value.trim() };
     if (!d.key_id || !d.secret_key || !d.filename) { showStatus('out', '请填写所有字段', 'error'); return; }
-    
-    showStatus('out', '正在获取链接...', 'loading');
+    const resultDiv = document.getElementById('download_result');
+    resultDiv.innerHTML = '<div class="status loading" style="margin-top:12px;"><span class="loading-text">正在获取链接...</span></div>';
     try {
         const r = await fetch(`${getApiBase()}/api/getfile`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(d) });
         const j = await r.json();
         if (r.ok) {
-            showStatus('out', `<strong>${j.filename}</strong><br><a href="${j.download_url}" target="_blank">点击下载文件</a><br><span class="hint" style="word-break:break-all;display:block;margin-top:6px;">${j.download_url}</span>`, 'success');
-        } else { showStatus('out', j.error, 'error'); }
-    } catch(e) { showStatus('out', e.message, 'error'); }
+            resultDiv.innerHTML = `
+                <div class="result-card">
+                    <button class="close-btn" onclick="this.parentElement.remove()" title="关闭">×</button>
+                    <strong>${j.filename}</strong>
+                    <a href="${j.download_url}" target="_blank">⬇️ 点击下载文件</a>
+                    <span class="result-link">${j.download_url}</span>
+                </div>`;
+        } else { 
+            resultDiv.innerHTML = '';
+            showStatus('out', j.error, 'error'); 
+        }
+    } catch(e) { 
+        resultDiv.innerHTML = '';
+        showStatus('out', e.message, 'error'); 
+    }
 }
 
 async function loadTokens() {
@@ -212,14 +195,9 @@ async function loadTokens() {
 async function createToken() {
     const desc = document.getElementById('new_desc').value.trim();
     if (!desc) { showStatus('token_out', '请输入描述', 'error'); return; }
-    
     showStatus('token_out', '正在创建...', 'loading');
     try {
-        const r = await fetch(`${getApiBase()}/api/token/add`, { 
-            method:'POST', 
-            headers:{'Content-Type':'application/json','Authorization':'Bearer '+requireJwt()}, 
-            body:JSON.stringify({description:desc}) 
-        });
+        const r = await fetch(`${getApiBase()}/api/token/add`, { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+requireJwt()}, body:JSON.stringify({description:desc}) });
         const j = await r.json();
         if (r.ok) { 
             const sid = 'sec_' + Date.now();
@@ -238,11 +216,7 @@ function toggleSec(id, val, btn) {
 async function deleteToken(id) {
     if (!confirm(`确定删除 "${id}"？此操作不可恢复。`)) return;
     try {
-        const r = await fetch(`${getApiBase()}/api/token/delete`, { 
-            method:'POST', 
-            headers:{'Content-Type':'application/json','Authorization':'Bearer '+requireJwt()}, 
-            body:JSON.stringify({key_id:id}) 
-        });
+        const r = await fetch(`${getApiBase()}/api/token/delete`, { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+requireJwt()}, body:JSON.stringify({key_id:id}) });
         const j = await r.json();
         if (r.ok) loadTokens(); else alert(j.error);
     } catch(e) { alert(e.message); }
