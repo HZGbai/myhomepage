@@ -21,223 +21,169 @@
         .success { background: rgba(74, 222, 128, 0.1); color: #4ade80; }
         .error { background: rgba(248, 113, 113, 0.1); color: #f87171; }
         code { background: #0f172a; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
+        .gen-section { border-top: 1px solid #334155; margin-top: 1rem; padding-top: 1rem; }
     </style>
 </head>
 <body>
-    <!-- 🔧 连接配置 -->
+    <!-- 🔌 连接与 JWT 管理 -->
     <div class="card">
-        <h2>🔌 Connection Settings</h2>
-        <input type="text" id="api_base" placeholder="API Base URL (e.g., https://cloud.hzgbai.dpdns.org)" value="https://cloud.hzgbai.dpdns.org">
-        <input type="password" id="jwt_input" placeholder="Paste your JWT token here">
+        <h2>🔌 Connection & JWT</h2>
+        <input type="text" id="api_base" placeholder="API Base URL" value="https://cloud.hzgbai.dpdns.org">
+        <input type="text" id="jwt_input" onpaste="setTimeout(()=>this.value=this.value.replace(/\s+/g,''),0)" placeholder="Paste or Generate JWT here">
         <button onclick="validateAndSaveJwt()">Validate & Save JWT</button>
         <div id="conn_status"></div>
+
+        <!-- 🛠️ 内置 JWT 生成器 -->
+        <div class="gen-section">
+            <h2 style="font-size:1rem; color:#94a3b8;">🛠️ JWT Generator (Custom SHA256+Hex)</h2>
+            <p class="hint">Enter your Dashboard JWT_SECRET to generate a valid token instantly.</p>
+            <input type="text" id="gen_secret" placeholder="Dashboard JWT_SECRET">
+            <button onclick="generateJwtInline()" style="background:#64748b;">Generate & Auto-Fill</button>
+            <div id="gen_status"></div>
+        </div>
     </div>
 
+    <!-- 🔗 下载链接获取 -->
     <div class="card">
-        <h2>🔗 Get Download Link</h2>
+        <h2> Get Download Link</h2>
         <input type="text" id="key_id" placeholder="Token ID (e.g., a3f)">
         <input type="password" id="secret_key" placeholder="Secret Key (64 hex chars)">
-        <input type="text" id="fname" placeholder="Filename (e.g., model.bin)">
+        <input type="text" id="fname" placeholder="Filename">
         <button onclick="getFile()">Get Link</button>
         <div id="out"></div>
     </div>
 
+    <!--  Token 管理 -->
     <div class="card">
-        <h2> Token Management</h2>
+        <h2>🔑 Token Management</h2>
         <input type="text" id="new_desc" placeholder="New Token Description">
         <button onclick="createToken()">Create Token</button>
         <div id="token_out"></div>
         <table>
             <thead><tr><th>ID</th><th>Description</th><th>Action</th></tr></thead>
-            <tbody id="token_table"><tr><td colspan="3" style="text-align:center;color:#64748b;">Enter and validate JWT to load tokens</td></tr></tbody>
+            <tbody id="token_table"><tr><td colspan="3" style="text-align:center;color:#64748b;">Validate JWT to load tokens</td></tr></tbody>
         </table>
     </div>
 
 <script>
-// ==================== 🔐 纯内存 JWT 会话管理 ====================
-let sessionJwt = null; // 页面关闭/刷新即销毁，不写入任何存储
+// ==================== 🔐 纯内存会话管理 ====================
+let sessionJwt = null;
+window.addEventListener('beforeunload', () => { sessionJwt = null; });
 
-function getApiBase() {
-    return document.getElementById('api_base').value.trim().replace(/\/$/, '');
+function getApiBase() { return document.getElementById('api_base').value.trim().replace(/\/$/, ''); }
+
+// ==================== 🛠️ 自定义 JWT 生成逻辑 (SHA256 + Hex) ====================
+async function sha256(str) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
+
+async function generateJwtInline() {
+    const secretInput = document.getElementById('gen_secret');
+    const jwtInput = document.getElementById('jwt_input');
+    const statusEl = document.getElementById('gen_status');
+    const secret = secretInput.value.trim();
+
+    if (!secret) {
+        statusEl.innerHTML = '<div class="status error">Please enter JWT_SECRET</div>';
+        return;
+    }
+
+    try {
+        // ️ 严格匹配 Worker 后端的签名拼接方式: header.payload.SECRET
+        const h = btoa(JSON.stringify({alg:'HS256',typ:'JWT'}));
+        const p = btoa(JSON.stringify({sub:'admin',exp:Math.floor(Date.now()/1000)+3600}));
+        const sig = await sha256(h + '.' + p + secret);
+        const jwt = h + '.' + p + '.' + sig;
+
+        jwtInput.value = jwt;
+        statusEl.innerHTML = '<div class="status success">✅ JWT generated & auto-filled! Click "Validate & Save"</div>';
+        
+        // 可选：生成后自动触发验证
+        // validateAndSaveJwt(); 
+    } catch (e) {
+        statusEl.innerHTML = '<div class="status error">Generation failed: ' + e.message + '</div>';
+    }
+}
+// ======================================================================
 
 async function validateAndSaveJwt() {
     const jwtInput = document.getElementById('jwt_input');
     const statusEl = document.getElementById('conn_status');
-    const rawJwt = jwtInput.value.trim();
+    const rawJwt = jwtInput.value.replace(/\s+/g, '').trim();
     
-    if (!rawJwt) {
-        statusEl.innerHTML = '<div class="status error">JWT cannot be empty</div>';
-        return;
-    }
+    if (!rawJwt) { statusEl.innerHTML = '<div class="status error">JWT cannot be empty</div>'; return; }
     
-    // 简单格式校验
     const parts = rawJwt.split('.');
-    if (parts.length !== 3) {
-        statusEl.innerHTML = '<div class="status error">Invalid JWT format (expected 3 segments)</div>';
-        return;
+    if (parts.length !== 3) { 
+        statusEl.innerHTML = `<div class="status error">Invalid format (${parts.length} segments)<br><span class="hint">Use the Generator above or check for spaces</span></div>`; 
+        return; 
     }
     
     try {
-        // 尝试调用一个轻量接口验证 JWT 有效性
-        const res = await fetch(`${getApiBase()}/api/tokens/list`, {
-            headers: { 'Authorization': 'Bearer ' + rawJwt }
-        });
-        
+        const res = await fetch(`${getApiBase()}/api/tokens/list`, { headers: { 'Authorization': 'Bearer ' + rawJwt } });
         if (res.ok || res.status === 401) {
-            // 401 说明 JWT 格式合法但权限不足，200 说明完全有效
             sessionJwt = rawJwt;
-            jwtInput.type = 'password'; // 输入后自动隐藏
-            statusEl.innerHTML = `<div class="status success">✅ JWT saved in memory (expires on page close)<br><span class="hint">Status: ${res.status === 200 ? 'Valid' : 'Format valid but may lack permissions'}</span></div>`;
+            jwtInput.type = 'password';
+            statusEl.innerHTML = `<div class="status success">✅ JWT saved in memory<br><span class="hint">Status: ${res.status === 200 ? 'Valid' : 'Format OK, check permissions'}</span></div>`;
             loadTokens();
         } else {
-            statusEl.innerHTML = '<div class="status error">Server rejected this JWT (' + res.status + ')</div>';
+            statusEl.innerHTML = '<div class="status error">Server rejected JWT (' + res.status + '). Check SECRET or expiration.</div>';
         }
     } catch (e) {
         statusEl.innerHTML = '<div class="status error">Connection failed: ' + e.message + '</div>';
     }
 }
 
-// 获取当前有效的 JWT，未验证则抛出错误
 function requireJwt() {
-    if (!sessionJwt) throw new Error('Please paste and validate your JWT first');
+    if (!sessionJwt) throw new Error('Please validate your JWT first');
     return sessionJwt;
 }
 
-// 页面卸载时主动清空（双重保险）
-window.addEventListener('beforeunload', () => { sessionJwt = null; });
-// ======================================================================
-
-function showStatus(elementId, message, isError = false) {
-    document.getElementById(elementId).innerHTML = 
-        `<div class="status ${isError ? 'error' : 'success'}">${message}</div>`;
+function showStatus(id, msg, err=false) {
+    document.getElementById(id).innerHTML = `<div class="status ${err?'error':'success'}">${msg}</div>`;
 }
 
 async function getFile() {
     const out = document.getElementById('out');
-    const data = {
-        key_id: document.getElementById('key_id').value.trim(),
-        secret_key: document.getElementById('secret_key').value.trim(),
-        filename: document.getElementById('fname').value.trim()
-    };
-    
-    if (!data.key_id || !data.secret_key || !data.filename) {
-        showStatus('out', 'Please fill in all fields', true);
-        return;
-    }
-    
+    const d = { key_id: document.getElementById('key_id').value.trim(), secret_key: document.getElementById('secret_key').value.trim(), filename: document.getElementById('fname').value.trim() };
+    if (!d.key_id || !d.secret_key || !d.filename) { showStatus('out', 'Fill all fields', true); return; }
     out.innerHTML = '<div class="status">Loading...</div>';
     try {
-        const res = await fetch(`${getApiBase()}/api/getfile`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(data)
-        });
-        const json = await res.json();
-        
-        if (res.ok) {
-            out.innerHTML = `
-                <div class="status success">
-                    <strong>${json.filename}</strong><br>
-                    <a href="${json.download_url}" target="_blank">Download File</a><br>
-                    <span class="hint">${json.download_url}</span>
-                </div>`;
-        } else {
-            showStatus('out', json.error || 'Unknown error', true);
-        }
-    } catch (e) {
-        showStatus('out', 'Network error: ' + e.message, true);
-    }
+        const r = await fetch(`${getApiBase()}/api/getfile`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(d) });
+        const j = await r.json();
+        if (r.ok) out.innerHTML = `<div class="status success"><strong>${j.filename}</strong><br><a href="${j.download_url}" target="_blank">Download</a><br><span class="hint">${j.download_url}</span></div>`;
+        else showStatus('out', j.error, true);
+    } catch(e) { showStatus('out', e.message, true); }
 }
 
 async function loadTokens() {
     try {
-        const jwt = requireJwt();
-        const res = await fetch(`${getApiBase()}/api/tokens/list`, {
-            headers: {'Authorization': 'Bearer ' + jwt}
-        });
-        
-        if (!res.ok) {
-            const err = await res.json();
-            showStatus('token_out', err.error || 'Auth failed (' + res.status + ')', true);
-            return;
-        }
-        
-        const list = await res.json();
-        const tbody = document.getElementById('token_table');
-        
-        if (list.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#64748b;">No tokens found</td></tr>';
-            return;
-        }
-        
-        tbody.innerHTML = list.map(t => `
-            <tr>
-                <td><code>${t.key_id}</code></td>
-                <td>${t.description}</td>
-                <td><button class="del-btn" onclick="deleteToken('${t.key_id}')">Delete</button></td>
-            </tr>
-        `).join('');
-    } catch (e) {
-        showStatus('token_out', e.message, true);
-    }
+        const r = await fetch(`${getApiBase()}/api/tokens/list`, { headers:{'Authorization':'Bearer '+requireJwt()} });
+        if (!r.ok) { showStatus('token_out', (await r.json()).error, true); return; }
+        const list = await r.json();
+        document.getElementById('token_table').innerHTML = list.length ? list.map(t=>`<tr><td><code>${t.key_id}</code></td><td>${t.description}</td><td><button class="del-btn" onclick="deleteToken('${t.key_id}')">Delete</button></td></tr>`).join('') : '<tr><td colspan="3" style="text-align:center;color:#64748b;">No tokens</td></tr>';
+    } catch(e) { showStatus('token_out', e.message, true); }
 }
 
 async function createToken() {
     const desc = document.getElementById('new_desc').value.trim();
-    if (!desc) {
-        showStatus('token_out', 'Description is required', true);
-        return;
-    }
-    
+    if (!desc) { showStatus('token_out', 'Description required', true); return; }
     try {
-        const jwt = requireJwt();
-        const res = await fetch(`${getApiBase()}/api/token/add`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + jwt
-            },
-            body: JSON.stringify({description: desc})
-        });
-        
-        const json = await res.json();
-        if (res.ok) {
-            showStatus('token_out', 
-                `✅ Created!<br>ID: <code>${json.key_id}</code><br>Secret: <code>${json.secret_key}</code><br><span class="hint">️ Save the secret now — it will never be shown again!</span>`
-            );
-            loadTokens();
-        } else {
-            showStatus('token_out', json.error, true);
-        }
-    } catch (e) {
-        showStatus('token_out', e.message, true);
-    }
+        const r = await fetch(`${getApiBase()}/api/token/add`, { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+requireJwt()}, body:JSON.stringify({description:desc}) });
+        const j = await r.json();
+        if (r.ok) { showStatus('token_out', `✅ Created!<br>ID: <code>${j.key_id}</code><br>Secret: <code>${j.secret_key}</code><br><span class="hint">Save secret now!</span>`); loadTokens(); }
+        else showStatus('token_out', j.error, true);
+    } catch(e) { showStatus('token_out', e.message, true); }
 }
 
 async function deleteToken(id) {
-    if (!confirm(`Delete token "${id}"? This cannot be undone.`)) return;
-    
+    if (!confirm(`Delete "${id}"?`)) return;
     try {
-        const jwt = requireJwt();
-        const res = await fetch(`${getApiBase()}/api/token/delete`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + jwt
-            },
-            body: JSON.stringify({key_id: id})
-        });
-        
-        const json = await res.json();
-        if (res.ok) {
-            loadTokens();
-        } else {
-            alert(json.error || 'Delete failed');
-        }
-    } catch (e) {
-        alert(e.message);
-    }
+        const r = await fetch(`${getApiBase()}/api/token/delete`, { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+requireJwt()}, body:JSON.stringify({key_id:id}) });
+        const j = await r.json();
+        if (r.ok) loadTokens(); else alert(j.error);
+    } catch(e) { alert(e.message); }
 }
 </script>
 </body>
