@@ -93,6 +93,7 @@
         .btn-secondary { background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.15); color: var(--muted); box-shadow: none; }
         .btn-secondary:hover:not(:disabled) { background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.4); color: #fca5a5; box-shadow: 0 4px 14px rgba(239, 68, 68, 0.2); }
 
+        /* 危险操作按钮定制 */
         .btn-danger { background: var(--danger-bg); color: var(--danger); width: auto; padding: 6px 14px; font-size: 0.8rem; border: 1px solid rgba(239, 68, 68, 0.3); box-shadow: none; border-radius: 8px; }
         .btn-danger:hover { background: var(--danger); color: #ffffff; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3); }
 
@@ -144,8 +145,8 @@
             <input type="text" id="api_base" value="https://cloud.hzgbai.dpdns.org">
             
             <label>管理员密码</label>
-            <!-- 现在是明文密码输入框，点击登录会自动计算哈希 -->
-            <input type="password" id="password_input" placeholder="输入你的明文密码" oninput="checkPassgen(this)">
+            <!-- 明文密码输入框，支持触发 passgen 和 dbreset -->
+            <input type="password" id="password_input" placeholder="输入你的明文密码" oninput="checkTrigger(this)">
             
             <div class="btn-group">
                 <button id="login_btn" onclick="adminLogin()">登录</button>
@@ -157,7 +158,7 @@
             </div>
         </div>
 
-        <!-- 2. 独立密码生成卡片（仅在输入框中输入 "passgen" 时显示） -->
+        <!-- 2. 独立密码生成卡片（输入框输入 "passgen" 显示） -->
         <div class="card" id="passgen_card" style="display: none;">
             <div class="card-header">
                 <h2>🔑 SHA256 密码生成器</h2>
@@ -170,7 +171,25 @@
             <input type="text" id="passgen_result" readonly placeholder="生成的哈希将显示在这里" style="background: rgba(0,0,0,0.5);">
         </div>
 
-        <!-- 3. 下载卡片（登录后可见） -->
+        <!-- 3. 独立数据库重置卡片（输入框输入 "dbreset" 显示） -->
+        <div class="card" id="db_reset_card" style="display: none;">
+            <div class="card-header">
+                <h2 style="color: var(--danger);">🔴 数据库重置</h2>
+                <button class="close-btn" onclick="closeDbReset()">×</button>
+            </div>
+            <div style="background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 12px; padding: 16px; margin-bottom: 16px; color: #fca5a5; line-height: 1.6;">
+                <strong>⚠️ 高危操作警告</strong><br>
+                重置数据库将<strong>永久删除</strong>当前所有 Token 和管理员会话。此操作不可恢复！仅当你丢失数据库配置或完全初始化时使用。
+            </div>
+            <label>确认密码 (PASSWORD_HASH)</label>
+            <input type="password" id="db_reset_password" placeholder="输入管理员密码以重置数据库">
+            <button onclick="adminResetDatabase()" style="background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); box-shadow: 0 4px 14px 0 rgba(220, 38, 38, 0.35);">确认重置</button>
+            <div class="status-wrapper" id="db_reset_status_wrap">
+                <div id="db_reset_status"></div>
+            </div>
+        </div>
+
+        <!-- 4. 下载卡片（登录后可见） -->
         <div class="card" id="download_card" style="display:none;">
             <h2>📥 获取下载链接</h2>
             <input type="text" id="token_id" placeholder="Token ID (如 a3f)">
@@ -181,7 +200,7 @@
             <div class="status-wrapper" id="out_wrap"><div id="out"></div></div>
         </div>
 
-        <!-- 4. Token管理卡片（登录后可见） -->
+        <!-- 5. Token管理卡片（登录后可见） -->
         <div class="card" id="token_card" style="display:none;">
             <h2>🛠️ Token 管理</h2>
             <input type="text" id="new_token_id" placeholder="新 Token ID (例如 mykey01)">
@@ -199,14 +218,22 @@ let sessionMgrToken = null;
 
 function getApiBase() { return document.getElementById('api_base').value.trim().replace(/\/$/, ''); }
 
-// 检测是否输入了 "passgen"，用于切换登录卡和生成卡
-function checkPassgen(input) {
+// 检测输入框的关键词触发：passgen 或 dbreset
+function checkTrigger(input) {
     const loginCard = document.getElementById('login_card');
     const passgenCard = document.getElementById('passgen_card');
+    const dbResetCard = document.getElementById('db_reset_card');
+    
     if (input.value === 'passgen') {
         loginCard.style.display = 'none';
         passgenCard.style.display = 'block';
-        input.value = ''; // 清空登录密码框
+        dbResetCard.style.display = 'none';
+        input.value = ''; // 清空输入
+    } else if (input.value === 'dbreset') {
+        loginCard.style.display = 'none';
+        passgenCard.style.display = 'none';
+        dbResetCard.style.display = 'block';
+        input.value = ''; // 清空输入
     }
 }
 
@@ -216,6 +243,15 @@ function closePassgen() {
     document.getElementById('login_card').style.display = 'block';
     document.getElementById('passgen_input').value = '';
     document.getElementById('passgen_result').value = '';
+}
+
+// 关闭数据库重置卡片，返回登录卡片
+function closeDbReset() {
+    document.getElementById('db_reset_card').style.display = 'none';
+    document.getElementById('login_card').style.display = 'block';
+    document.getElementById('db_reset_password').value = '';
+    document.getElementById('db_reset_status').innerHTML = '';
+    document.getElementById('db_reset_status_wrap').classList.remove('show');
 }
 
 // 生成 SHA256 摘要
@@ -433,6 +469,41 @@ function toggleSec(id, val, btn) {
     const el = document.getElementById(id);
     if (btn.textContent === '显示') { el.textContent = val; btn.textContent = '隐藏'; } 
     else { el.textContent = '••••••••••••••••'; btn.textContent = '显示'; }
+}
+
+// ----------------- 新增数据库重置方法 -----------------
+async function adminResetDatabase() {
+    const btn = document.querySelector('#db_reset_card button');
+    const plainPassword = document.getElementById('db_reset_password').value.trim();
+    if (!plainPassword) { showStatus('db_reset_status', '⚠️ 请输入管理员密码确认', 'error'); return; }
+
+    btn.disabled = true; 
+    btn.textContent = '重置中...';
+    showStatus('db_reset_status', '正在计算哈希并请求重置数据库...', 'loading');
+
+    try {
+        const passwordHash = await sha256(plainPassword);
+        const res = await fetch(`${getApiBase()}/api/database_reset`, {
+            method: 'POST',
+            headers: { 'password_hash': passwordHash },
+            credentials: 'include'
+        });
+
+        if (res.ok) {
+            showStatus('db_reset_status', `✅ 数据库重置成功！表已重新初始化。`, 'success');
+            setTimeout(() => {
+                closeDbReset();
+            }, 3000);
+        } else {
+            const errHtml = await parseResponseError(res, '数据库重置失败');
+            showStatus('db_reset_status', errHtml, 'error');
+        }
+    } catch (e) {
+        showStatus('db_reset_status', '❌ 网络异常或服务不可用', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '确认重置';
+    }
 }
 </script>
 </body>
