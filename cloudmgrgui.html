@@ -48,7 +48,6 @@
             animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1); 
         }
 
-        /* 优化卡片布局 */
         .card { 
             background: var(--card-bg); 
             backdrop-filter: blur(20px) saturate(180%);
@@ -98,7 +97,6 @@
         .close-btn { background: transparent; border: none; color: var(--muted); width: 26px; height: 26px; padding: 0; font-size: 1.5rem; line-height: 1; display: flex; align-items: center; justify-content: center; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; flex-shrink: 0; box-shadow: none; }
         .close-btn:hover { background: rgba(255, 255, 255, 0.1); color: var(--text); }
 
-        /* 修复状态栏与卡片布局的冲突 */
         .status-wrapper { 
             max-height: 0; 
             opacity: 0; 
@@ -129,7 +127,6 @@
         .status.error { background: rgba(248, 113, 113, 0.12); color: #fca5a5; border: 1px solid rgba(248, 113, 113, 0.25); }
         .status.loading { background: rgba(56, 189, 248, 0.12); color: #7dd3fc; border: 1px solid rgba(56, 189, 248, 0.25); }
 
-        /* 后续卡片及表格 */
         .result-card { margin-top: 20px; padding: 18px; background: rgba(56, 189, 248, 0.06); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 12px; animation: slideUp 0.3s ease; }
         .result-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
         .result-header strong { color: var(--text); font-size: 1.05rem; }
@@ -189,32 +186,24 @@
             <input type="text" id="passgen_result" readonly placeholder="生成的哈希将显示在这里" style="background: rgba(0,0,0,0.5);">
         </div>
 
-        <!-- ========================================== -->
-        <!-- 数据库重置卡片 (UI 已重构并优化) -->
-        <!-- ========================================== -->
+        <!-- 数据库重置卡片 -->
         <div class="card" id="db_reset_card" style="display: none;">
             <div class="card-header">
                 <h2 style="color: var(--danger); display: flex; align-items: center; gap: 8px;">🔴 数据库重置</h2>
                 <button class="close-btn" onclick="closeDbReset()">×</button>
             </div>
-            <!-- 警告区域美化 -->
             <div style="background: rgba(220, 38, 38, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 12px; padding: 14px 18px; margin-bottom: 20px; color: #fca5a5; line-height: 1.6; backdrop-filter: blur(5px);">
                 <div style="font-weight: 600; margin-bottom: 4px;">⚠️ 高危操作警告</div>
                 重置数据库将<strong>永久删除</strong>当前所有 Token 和管理员会话。此操作不可恢复！<br>
                 <span style="opacity: 0.7;">仅在初始配置或数据库异常丢失时使用。</span>
             </div>
-            
             <label>确认密码 (PASSWORD_HASH)</label>
             <input type="password" id="db_reset_password" placeholder="输入管理员密码以重置数据库">
-            
             <button onclick="adminResetDatabase()" style="background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); box-shadow: 0 4px 14px 0 rgba(220, 38, 38, 0.35);">确认重置</button>
-            
-            <!-- 修复后的状态栏，绝对不会再右边溢出显示怪字 -->
             <div class="status-wrapper" id="db_reset_status_wrap" style="margin-top: 16px;">
                 <div id="db_reset_status"></div>
             </div>
         </div>
-        <!-- ========================================== -->
 
         <!-- 下载链接卡片 -->
         <div class="card" id="download_card" style="display:none;">
@@ -244,6 +233,55 @@
 let sessionMgrToken = null;
 
 function getApiBase() { return document.getElementById('api_base').value.trim().replace(/\/$/, ''); }
+
+// 👇 首次加载页面时，自动检查 Cookie 登录状态
+window.addEventListener('load', function() {
+    checkLoginStatus();
+});
+
+async function checkLoginStatus() {
+    try {
+        // 用 List 接口测试 Cookie 是否有效
+        const r = await fetch(`${getApiBase()}/api/token/list`, {
+            credentials: 'include'
+        });
+        if (r.ok) {
+            // 1. 隐藏登录卡片
+            document.getElementById('login_card').style.display = 'none';
+            document.getElementById('passgen_card').style.display = 'none';
+            document.getElementById('db_reset_card').style.display = 'none';
+            
+            // 2. 显示管理卡片
+            document.getElementById('download_card').style.display = 'block';
+            document.getElementById('token_card').style.display = 'block';
+            document.getElementById('logout_btn').style.display = 'inline-flex';
+
+            // 3. 直接加载 Token 列表数据
+            const list = await r.json();
+            const tbody = document.getElementById('token_table');
+            if (list.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:20px;">暂无 Token</td></tr>';
+            } else {
+                tbody.innerHTML = list.map(t => `
+                    <tr>
+                        <td><code>${t.key_id}</code></td>
+                        <td>${t.description}</td>
+                        <td><button class="btn-danger" onclick="deleteToken('${t.key_id}')">删除</button></td>
+                    </tr>
+                `).join('');
+            }
+            showStatus('auth_status', '✅ 检测到已保存的登录状态，已自动恢复。', 'success');
+        } else {
+            // 没有 Cookie 或已过期，什么都不做，停留在登录界面
+            document.getElementById('download_card').style.display = 'none';
+            document.getElementById('token_card').style.display = 'none';
+            document.getElementById('logout_btn').style.display = 'none';
+            document.getElementById('auth_status_wrap').classList.remove('show');
+        }
+    } catch (e) {
+        // 网络异常时，保持登录界面静默
+    }
+}
 
 function checkTrigger(input) {
     const loginCard = document.getElementById('login_card');
@@ -328,6 +366,9 @@ async function adminLogin() {
 
         if (res.ok) {
             showStatus('auth_status', `✅ 登录成功！令牌已通过 HttpOnly Cookie 安全保存。<br>有效期: 7天`, 'success');
+            
+            // 登录成功后，隐藏登录卡，显示管理卡
+            document.getElementById('login_card').style.display = 'none';
             document.getElementById('download_card').style.display = 'block';
             document.getElementById('token_card').style.display = 'block';
             document.getElementById('logout_btn').style.display = 'inline-flex';
@@ -353,7 +394,9 @@ async function adminLogout() {
     document.getElementById('download_card').style.display = 'none';
     document.getElementById('token_card').style.display = 'none';
     document.getElementById('logout_btn').style.display = 'none';
+    document.getElementById('login_card').style.display = 'block'; // 恢复显示登录界面
     document.getElementById('password_input').value = '';
+    document.getElementById('auth_status_wrap').classList.remove('show');
     showStatus('auth_status', '🔒 已退出登录，Mgr Token 已销毁。', 'success');
     document.getElementById('token_table').innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:20px;">请先登录</td></tr>';
 }
