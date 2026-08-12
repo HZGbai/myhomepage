@@ -68,23 +68,8 @@
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6), inset 0 1px 0 0 rgba(255, 255, 255, 0.2);
         }
 
-        /* 卡片标题样式调整，方便做左右对齐 */
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-        .card-header h2 {
-            font-size: 1.25rem; 
-            font-weight: 600;
-            color: var(--text); 
-            display: flex; 
-            align-items: center; 
-            gap: 10px; 
-            letter-spacing: -0.01em;
-            margin-bottom: 0;
-        }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .card-header h2 { font-size: 1.25rem; font-weight: 600; color: var(--text); display: flex; align-items: center; gap: 10px; letter-spacing: -0.01em; margin-bottom: 0; }
 
         label { display: block; font-size: 0.85rem; font-weight: 500; color: var(--muted); margin-bottom: 8px; }
         input { 
@@ -158,11 +143,12 @@
             <label>API 地址</label>
             <input type="text" id="api_base" value="https://cloud.hzgbai.dpdns.org">
             
-            <label>管理员密码哈希 (Password Hash)</label>
-            <input type="password" id="password_hash" placeholder="输入已配置的 PASSWORD_HASH" oninput="checkPassgen(this)">
+            <label>管理员密码</label>
+            <!-- 现在是明文密码输入框，点击登录会自动计算哈希 -->
+            <input type="password" id="password_input" placeholder="输入你的明文密码" oninput="checkPassgen(this)">
             
             <div class="btn-group">
-                <button id="login_btn" onclick="adminLogin()">登录并获取 Token</button>
+                <button id="login_btn" onclick="adminLogin()">登录</button>
                 <button id="logout_btn" class="btn-secondary" style="display:none;" onclick="adminLogout()">🔒 退出登录</button>
             </div>
 
@@ -171,16 +157,16 @@
             </div>
         </div>
 
-        <!-- 2. 独立密码生成卡片（默认隐藏） -->
+        <!-- 2. 独立密码生成卡片（仅在输入框中输入 "passgen" 时显示） -->
         <div class="card" id="passgen_card" style="display: none;">
             <div class="card-header">
                 <h2>🔑 SHA256 密码生成器</h2>
                 <button class="close-btn" onclick="closePassgen()">×</button>
             </div>
-            <label>输入明文密码</label>
+            <label>输入明文密码 (用于配置环境变量 PASSWORD_HASH)</label>
             <input type="text" id="passgen_input" placeholder="输入明文密码以生成哈希">
             <button onclick="calcPassgen()" style="margin-bottom: 16px;">生成 SHA256</button>
-            <label>生成的哈希 (配置到 Cloudflare 环境变量 PASSWORD_HASH)</label>
+            <label>生成的 SHA256 哈希值 (填入 Cloudflare)</label>
             <input type="text" id="passgen_result" readonly placeholder="生成的哈希将显示在这里" style="background: rgba(0,0,0,0.5);">
         </div>
 
@@ -213,14 +199,14 @@ let sessionMgrToken = null;
 
 function getApiBase() { return document.getElementById('api_base').value.trim().replace(/\/$/, ''); }
 
-// 检测是否输入了 "passgen"，独立卡片逻辑
+// 检测是否输入了 "passgen"，用于切换登录卡和生成卡
 function checkPassgen(input) {
     const loginCard = document.getElementById('login_card');
     const passgenCard = document.getElementById('passgen_card');
     if (input.value === 'passgen') {
         loginCard.style.display = 'none';
         passgenCard.style.display = 'block';
-        input.value = ''; // 清空登录密码框，防止误触
+        input.value = ''; // 清空登录密码框
     }
 }
 
@@ -267,13 +253,16 @@ async function parseResponseError(res, defaultContext = '请求失败') {
 
 async function adminLogin() {
     const btn = document.getElementById('login_btn');
-    const passwordHash = document.getElementById('password_hash').value.trim();
-    if (!passwordHash) { showStatus('auth_status', '⚠️ 请输入管理员密码哈希', 'error'); return; }
+    const plainPassword = document.getElementById('password_input').value.trim();
+    if (!plainPassword) { showStatus('auth_status', '⚠️ 请输入管理员密码', 'error'); return; }
 
     btn.disabled = true; btn.textContent = '登录中...';
-    showStatus('auth_status', '正在验证凭据...', 'loading');
+    showStatus('auth_status', '正在加密验证...', 'loading');
 
     try {
+        // 核心修正：前端直接计算 SHA256 哈希
+        const passwordHash = await sha256(plainPassword);
+
         const res = await fetch(`${getApiBase()}/api/mgr/login`, {
             method: 'POST',
             headers: { 'password_hash': passwordHash },
@@ -297,7 +286,7 @@ async function adminLogin() {
         showStatus('auth_status', '❌ 网络异常或服务不可用', 'error');
     } finally {
         btn.disabled = false;
-        btn.textContent = '登录并获取 Token';
+        btn.textContent = '登录';
     }
 }
 
@@ -314,7 +303,7 @@ async function adminLogout() {
     document.getElementById('download_card').style.display = 'none';
     document.getElementById('token_card').style.display = 'none';
     document.getElementById('logout_btn').style.display = 'none';
-    document.getElementById('password_hash').value = '';
+    document.getElementById('password_input').value = '';
     showStatus('auth_status', '🔒 已退出登录，Mgr Token 已销毁。', 'success');
     document.getElementById('token_table').innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:20px;">请先登录</td></tr>';
 }
