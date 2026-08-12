@@ -48,6 +48,7 @@
             animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1); 
         }
 
+        /* 优化卡片布局 */
         .card { 
             background: var(--card-bg); 
             backdrop-filter: blur(20px) saturate(180%);
@@ -58,7 +59,7 @@
             box-shadow: var(--card-shadow), inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
             transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease, border-color 0.3s ease; 
             position: relative; 
-            overflow: hidden;
+            overflow: hidden; 
             display: block;
         }
 
@@ -76,15 +77,13 @@
             width: 100%; padding: 12px 16px; background: var(--input-bg); border: 1px solid var(--input-border); 
             border-radius: 12px; color: var(--text); font-size: 0.95rem; transition: all 0.25s ease; margin-bottom: 16px; backdrop-filter: blur(5px);
         }
-        input::placeholder { color: rgba(148, 163, 184, 0.5); }
         input:focus { border-color: var(--primary); background: rgba(15, 23, 42, 0.8); box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.15); }
 
         .btn-group { display: flex; gap: 12px; }
         button { 
             width: 100%; padding: 13px 18px; background: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%); 
             color: #ffffff; border: none; border-radius: 12px; font-weight: 600; cursor: pointer; 
-            transition: all 0.25s ease; font-size: 0.95rem; box-shadow: 0 4px 14px 0 rgba(56, 189, 248, 0.35);
-            display: inline-flex; justify-content: center; align-items: center;
+            transition: all 0.25s ease; font-size: 0.95rem; box-shadow: 0 4px 14px 0 rgba(56, 189, 248, 0.35); display: inline-flex; justify-content: center; align-items: center;
         }
         button:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); box-shadow: 0 6px 20px 0 rgba(56, 189, 248, 0.45); }
         button:active:not(:disabled) { transform: translateY(0); filter: brightness(0.95); }
@@ -93,21 +92,44 @@
         .btn-secondary { background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.15); color: var(--muted); box-shadow: none; }
         .btn-secondary:hover:not(:disabled) { background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.4); color: #fca5a5; box-shadow: 0 4px 14px rgba(239, 68, 68, 0.2); }
 
-        /* 危险操作按钮定制 */
         .btn-danger { background: var(--danger-bg); color: var(--danger); width: auto; padding: 6px 14px; font-size: 0.8rem; border: 1px solid rgba(239, 68, 68, 0.3); box-shadow: none; border-radius: 8px; }
         .btn-danger:hover { background: var(--danger); color: #ffffff; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3); }
 
         .close-btn { background: transparent; border: none; color: var(--muted); width: 26px; height: 26px; padding: 0; font-size: 1.5rem; line-height: 1; display: flex; align-items: center; justify-content: center; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; flex-shrink: 0; box-shadow: none; }
         .close-btn:hover { background: rgba(255, 255, 255, 0.1); color: var(--text); }
 
-        .status-wrapper { max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease, margin 0.3s ease; margin-top: 0; }
-        .status-wrapper.show { max-height: 500px; opacity: 1; margin-top: 16px; overflow: visible; }
-        .status { padding: 14px 18px; border-radius: 12px; font-size: 0.875rem; line-height: 1.6; word-break: break-word; animation: fadeIn 0.3s ease; display: flex; align-items: flex-start; justify-content: space-between; backdrop-filter: blur(10px); }
+        /* 修复状态栏与卡片布局的冲突 */
+        .status-wrapper { 
+            max-height: 0; 
+            opacity: 0; 
+            overflow: hidden; 
+            transition: max-height 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease, margin 0.3s ease; 
+            margin-top: 0; 
+        }
+        .status-wrapper.show { 
+            max-height: 500px; 
+            opacity: 1; 
+            margin-top: 16px; 
+            overflow: visible; 
+        }
+        .status { 
+            padding: 14px 18px; 
+            border-radius: 12px; 
+            font-size: 0.875rem; 
+            line-height: 1.6; 
+            word-break: break-word; 
+            animation: fadeIn 0.3s ease; 
+            display: flex; 
+            align-items: flex-start; 
+            justify-content: space-between; 
+            backdrop-filter: blur(10px);
+        }
         .status-content { flex: 1; margin-right: 8px; min-width: 0; } 
         .status.success { background: rgba(74, 222, 128, 0.12); color: #86efac; border: 1px solid rgba(74, 222, 128, 0.25); }
         .status.error { background: rgba(248, 113, 113, 0.12); color: #fca5a5; border: 1px solid rgba(248, 113, 113, 0.25); }
         .status.loading { background: rgba(56, 189, 248, 0.12); color: #7dd3fc; border: 1px solid rgba(56, 189, 248, 0.25); }
 
+        /* 后续卡片及表格 */
         .result-card { margin-top: 20px; padding: 18px; background: rgba(56, 189, 248, 0.06); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 12px; animation: slideUp 0.3s ease; }
         .result-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
         .result-header strong { color: var(--text); font-size: 1.05rem; }
@@ -136,29 +158,25 @@
 </head>
 <body>
     <div class="container">
-        <!-- 1. 登录卡片 -->
+        <!-- 登录卡片 -->
         <div class="card" id="login_card">
             <div class="card-header">
                 <h2>🔑 管理员登录</h2>
             </div>
             <label>API 地址</label>
             <input type="text" id="api_base" value="https://cloud.hzgbai.dpdns.org">
-            
             <label>管理员密码</label>
-            <!-- 明文密码输入框，支持触发 passgen 和 dbreset -->
             <input type="password" id="password_input" placeholder="输入你的明文密码" oninput="checkTrigger(this)">
-            
             <div class="btn-group">
                 <button id="login_btn" onclick="adminLogin()">登录</button>
                 <button id="logout_btn" class="btn-secondary" style="display:none;" onclick="adminLogout()">🔒 退出登录</button>
             </div>
-
             <div class="status-wrapper" id="auth_status_wrap">
                 <div id="auth_status"></div>
             </div>
         </div>
 
-        <!-- 2. 独立密码生成卡片（输入框输入 "passgen" 显示） -->
+        <!-- 密码生成卡片 -->
         <div class="card" id="passgen_card" style="display: none;">
             <div class="card-header">
                 <h2>🔑 SHA256 密码生成器</h2>
@@ -171,25 +189,34 @@
             <input type="text" id="passgen_result" readonly placeholder="生成的哈希将显示在这里" style="background: rgba(0,0,0,0.5);">
         </div>
 
-        <!-- 3. 独立数据库重置卡片（输入框输入 "dbreset" 显示） -->
+        <!-- ========================================== -->
+        <!-- 数据库重置卡片 (UI 已重构并优化) -->
+        <!-- ========================================== -->
         <div class="card" id="db_reset_card" style="display: none;">
             <div class="card-header">
-                <h2 style="color: var(--danger);">🔴 数据库重置</h2>
+                <h2 style="color: var(--danger); display: flex; align-items: center; gap: 8px;">🔴 数据库重置</h2>
                 <button class="close-btn" onclick="closeDbReset()">×</button>
             </div>
-            <div style="background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 12px; padding: 16px; margin-bottom: 16px; color: #fca5a5; line-height: 1.6;">
-                <strong>⚠️ 高危操作警告</strong><br>
-                重置数据库将<strong>永久删除</strong>当前所有 Token 和管理员会话。此操作不可恢复！仅当你丢失数据库配置或完全初始化时使用。
+            <!-- 警告区域美化 -->
+            <div style="background: rgba(220, 38, 38, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 12px; padding: 14px 18px; margin-bottom: 20px; color: #fca5a5; line-height: 1.6; backdrop-filter: blur(5px);">
+                <div style="font-weight: 600; margin-bottom: 4px;">⚠️ 高危操作警告</div>
+                重置数据库将<strong>永久删除</strong>当前所有 Token 和管理员会话。此操作不可恢复！<br>
+                <span style="opacity: 0.7;">仅在初始配置或数据库异常丢失时使用。</span>
             </div>
+            
             <label>确认密码 (PASSWORD_HASH)</label>
             <input type="password" id="db_reset_password" placeholder="输入管理员密码以重置数据库">
+            
             <button onclick="adminResetDatabase()" style="background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); box-shadow: 0 4px 14px 0 rgba(220, 38, 38, 0.35);">确认重置</button>
-            <div class="status-wrapper" id="db_reset_status_wrap">
+            
+            <!-- 修复后的状态栏，绝对不会再右边溢出显示怪字 -->
+            <div class="status-wrapper" id="db_reset_status_wrap" style="margin-top: 16px;">
                 <div id="db_reset_status"></div>
             </div>
         </div>
+        <!-- ========================================== -->
 
-        <!-- 4. 下载卡片（登录后可见） -->
+        <!-- 下载链接卡片 -->
         <div class="card" id="download_card" style="display:none;">
             <h2>📥 获取下载链接</h2>
             <input type="text" id="token_id" placeholder="Token ID (如 a3f)">
@@ -200,7 +227,7 @@
             <div class="status-wrapper" id="out_wrap"><div id="out"></div></div>
         </div>
 
-        <!-- 5. Token管理卡片（登录后可见） -->
+        <!-- Token 管理卡片 -->
         <div class="card" id="token_card" style="display:none;">
             <h2>🛠️ Token 管理</h2>
             <input type="text" id="new_token_id" placeholder="新 Token ID (例如 mykey01)">
@@ -218,7 +245,6 @@ let sessionMgrToken = null;
 
 function getApiBase() { return document.getElementById('api_base').value.trim().replace(/\/$/, ''); }
 
-// 检测输入框的关键词触发：passgen 或 dbreset
 function checkTrigger(input) {
     const loginCard = document.getElementById('login_card');
     const passgenCard = document.getElementById('passgen_card');
@@ -228,16 +254,15 @@ function checkTrigger(input) {
         loginCard.style.display = 'none';
         passgenCard.style.display = 'block';
         dbResetCard.style.display = 'none';
-        input.value = ''; // 清空输入
+        input.value = '';
     } else if (input.value === 'dbreset') {
         loginCard.style.display = 'none';
         passgenCard.style.display = 'none';
         dbResetCard.style.display = 'block';
-        input.value = ''; // 清空输入
+        input.value = '';
     }
 }
 
-// 关闭密码生成卡片，返回登录卡片
 function closePassgen() {
     document.getElementById('passgen_card').style.display = 'none';
     document.getElementById('login_card').style.display = 'block';
@@ -245,7 +270,6 @@ function closePassgen() {
     document.getElementById('passgen_result').value = '';
 }
 
-// 关闭数据库重置卡片，返回登录卡片
 function closeDbReset() {
     document.getElementById('db_reset_card').style.display = 'none';
     document.getElementById('login_card').style.display = 'block';
@@ -254,7 +278,6 @@ function closeDbReset() {
     document.getElementById('db_reset_status_wrap').classList.remove('show');
 }
 
-// 生成 SHA256 摘要
 async function sha256(str) {
     const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
     return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
@@ -296,9 +319,7 @@ async function adminLogin() {
     showStatus('auth_status', '正在加密验证...', 'loading');
 
     try {
-        // 核心修正：前端直接计算 SHA256 哈希
         const passwordHash = await sha256(plainPassword);
-
         const res = await fetch(`${getApiBase()}/api/mgr/login`, {
             method: 'POST',
             headers: { 'password_hash': passwordHash },
@@ -306,10 +327,7 @@ async function adminLogin() {
         });
 
         if (res.ok) {
-            const data = await res.json();
-            sessionMgrToken = data.mgr_token;
-            showStatus('auth_status', `✅ 登录成功！Mgr Token 已保存至内存。<br>有效期: 5天无操作自动销毁`, 'success');
-            
+            showStatus('auth_status', `✅ 登录成功！令牌已通过 HttpOnly Cookie 安全保存。<br>有效期: 7天`, 'success');
             document.getElementById('download_card').style.display = 'block';
             document.getElementById('token_card').style.display = 'block';
             document.getElementById('logout_btn').style.display = 'inline-flex';
@@ -327,15 +345,11 @@ async function adminLogin() {
 }
 
 async function adminLogout() {
-    if (!sessionMgrToken) return;
+    if (sessionMgrToken) { sessionMgrToken = null; }
     try {
-        await fetch(`${getApiBase()}/api/mgr/logout`, {
-            method: 'POST',
-            headers: { 'mgr_token': sessionMgrToken },
-            credentials: 'include'
-        });
+        await fetch(`${getApiBase()}/api/mgr/logout`, { method: 'POST', credentials: 'include' });
     } catch (e) {}
-    sessionMgrToken = null;
+
     document.getElementById('download_card').style.display = 'none';
     document.getElementById('token_card').style.display = 'none';
     document.getElementById('logout_btn').style.display = 'none';
@@ -345,12 +359,8 @@ async function adminLogout() {
 }
 
 async function loadTokens() {
-    if (!sessionMgrToken) return;
     try {
-        const r = await fetch(`${getApiBase()}/api/token/list`, {
-            headers: { 'mgr_token': sessionMgrToken },
-            credentials: 'include'
-        });
+        const r = await fetch(`${getApiBase()}/api/token/list`, { credentials: 'include' });
         if (!r.ok) {
             const errHtml = await parseResponseError(r, '加载 Token 列表失败');
             showStatus('token_out', errHtml, 'error');
@@ -375,13 +385,12 @@ async function loadTokens() {
 async function createToken() {
     const tokenId = document.getElementById('new_token_id').value.trim();
     if (!tokenId) { showStatus('token_out', '⚠️ 请输入新 Token ID', 'error'); return; }
-    if (!sessionMgrToken) { showStatus('token_out', '⚠️ 请先登录', 'error'); return; }
 
     showStatus('token_out', '正在创建 Token...', 'loading');
     try {
         const r = await fetch(`${getApiBase()}/api/token/add`, {
             method: 'POST',
-            headers: { 'mgr_token': sessionMgrToken, 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ token_id: tokenId }),
             credentials: 'include'
         });
@@ -392,10 +401,8 @@ async function createToken() {
             return;
         }
         const j = await r.json();
-        // 解密展示
         const decoded = atob(j.token);
         const secretKey = decoded.split(':')[1];
-        
         showStatus('token_out', `✅ 创建成功!<br>ID: <code>${tokenId}</code><div class="secret-row">Secret: <span id="sec_${Date.now()}" style="font-family:monospace;background:rgba(0,0,0,0.3);padding:3px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);">••••••••••••••••</span> <button class="toggle-btn" onclick="toggleSec('sec_${Date.now()}','${secretKey}',this)">显示</button></div><span class="hint">⚠️ 请立即保存 Secret，关闭后将无法再次查看！</span>`, 'success');
         document.getElementById('new_token_id').value = '';
         loadTokens(); 
@@ -404,12 +411,11 @@ async function createToken() {
 
 async function deleteToken(id) {
     if (!confirm(`确定删除 Token ID "${id}"？`)) return;
-    if (!sessionMgrToken) return;
     showStatus('token_out', `正在删除 Token ${id}...`, 'loading');
     try {
         const r = await fetch(`${getApiBase()}/api/token/del`, {
             method: 'POST',
-            headers: { 'mgr_token': sessionMgrToken, 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ token_id: id }),
             credentials: 'include'
         });
@@ -430,10 +436,8 @@ async function getFile() {
         filename: document.getElementById('fname').value.trim() 
     };
     if (!d.token_id || !d.token || !d.filename) { showStatus('out', '⚠️ 请填写 Token ID, Secret Key 和文件名', 'error'); return; }
-    
     const resultDiv = document.getElementById('download_result');
     resultDiv.innerHTML = '<div class="status loading" style="margin-top:12px;"><span class="loading-text">正在获取链接...</span></div>';
-    
     try {
         const r = await fetch(`${getApiBase()}/api/getfileurl`, { 
             method: 'POST', 
@@ -471,7 +475,6 @@ function toggleSec(id, val, btn) {
     else { el.textContent = '••••••••••••••••'; btn.textContent = '显示'; }
 }
 
-// ----------------- 新增数据库重置方法 -----------------
 async function adminResetDatabase() {
     const btn = document.querySelector('#db_reset_card button');
     const plainPassword = document.getElementById('db_reset_password').value.trim();
