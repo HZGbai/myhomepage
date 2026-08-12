@@ -360,12 +360,6 @@ function showStatus(id, msg, type = 'success') {
     wrap.classList.add('show');
 }
 
-async function parseResponseError(res, defaultContext = '请求失败') {
-    let serverErr = '';
-    try { const text = await res.text(); try { const j = JSON.parse(text); serverErr = j.error || j.message || ''; } catch { serverErr = text; } } catch {}
-    return serverErr;
-}
-
 async function adminLogin() {
     const btn = document.getElementById('login_btn');
     const plainPassword = document.getElementById('password_input').value.trim();
@@ -383,8 +377,7 @@ async function adminLogin() {
         });
 
         if (res.ok) {
-            const data = await res.json();
-            showStatus('auth_status', `✅ ${data.message}`, 'success');
+            showStatus('auth_status', '✅ 登录成功', 'success');
             
             const apiBaseInput = document.getElementById('api_base');
             const passwordInput = document.getElementById('password_input');
@@ -399,11 +392,18 @@ async function adminLogin() {
             document.getElementById('token_card').style.display = 'block';
             loadTokens();
         } else {
-            const errMsg = await parseResponseError(res);
-            showStatus('auth_status', `登录失败: ${errMsg}`, 'error');
+            let errorMsg = '登录失败';
+            if (res.status === 401) {
+                errorMsg = '登录失败：密码错误';
+            } else if (res.status === 504) {
+                errorMsg = '登录失败：请求超时';
+            } else if (res.status === 500) {
+                errorMsg = '登录失败：服务器内部错误';
+            }
+            showStatus('auth_status', `❌ ${errorMsg}`, 'error');
         }
     } catch (e) {
-        showStatus('auth_status', '登录失败: 网络异常或服务不可用', 'error');
+        showStatus('auth_status', '❌ 登录失败：网络异常或服务不可用', 'error');
     } finally {
         btn.disabled = false;
     }
@@ -413,14 +413,12 @@ async function adminLogout() {
     try {
         const res = await fetch(`${getApiBase()}/api/mgr/logout`, { method: 'POST', credentials: 'include' });
         if (res.ok) {
-            const data = await res.json();
-            showStatus('auth_status', `注销成功`, 'success');
+            showStatus('auth_status', '✅ 注销成功', 'success');
         } else {
-            const errMsg = await parseResponseError(res);
-            showStatus('auth_status', `注销失败: ${errMsg}`, 'error');
+            showStatus('auth_status', '❌ 注销失败', 'error');
         }
     } catch (e) {
-        showStatus('auth_status', '注销失败: 网络异常', 'error');
+        showStatus('auth_status', '❌ 注销失败：网络异常', 'error');
     }
     
     resetLoginUiToDefault();
@@ -430,8 +428,7 @@ async function loadTokens() {
     try {
         const r = await fetch(`${getApiBase()}/api/token/list`, { credentials: 'include' });
         if (!r.ok) {
-            const errMsg = await parseResponseError(r);
-            showStatus('token_out', errMsg, 'error');
+            showStatus('token_out', '❌ 加载 Token 列表失败', 'error');
             return;
         }
         const list = await r.json();
@@ -447,7 +444,7 @@ async function loadTokens() {
                 <td><button class="btn-danger" onclick="deleteToken('${t.key_id}')">删除</button></td>
             </tr>
         `).join('');
-    } catch(e) { showStatus('token_out', `加载Token列表失败: ${e.message}`, 'error'); }
+    } catch(e) { showStatus('token_out', `❌ 加载 Token 列表失败：${e.message}`, 'error'); }
 }
 
 async function createToken() {
@@ -465,16 +462,29 @@ async function createToken() {
 
         if (r.ok) {
             const j = await r.json();
+            // 提取 token_id
+            const msgParts = j.message.split(' ');
+            const id = msgParts[1];
+            
+            showStatus('token_out', `✅ 编号 ${id} 的 Token 创建`, 'success');
+            
             const decoded = atob(j.token);
             const secretKey = decoded.split(':')[1];
-            showStatus('token_out', `✅ ${j.message}`, 'success');
+            const sid = 'sec_' + Date.now();
+            // 动态展示创建成功凭证
+            const secretHtml = `<div class="secret-row">Secret: <span id="${sid}" style="font-family:monospace;background:rgba(0,0,0,0.3);padding:3px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);">••••••••••••••••</span> <button class="toggle-btn" onclick="toggleSec('${sid}','${secretKey}',this)">显示</button></div><span class="hint">⚠️ 请立即保存 Secret，关闭后将无法再次查看！</span>`;
+            document.querySelector('#token_out .status-content').innerHTML += secretHtml;
+            
             document.getElementById('new_token_id').value = '';
             loadTokens(); 
         } else {
-            const errMsg = await parseResponseError(r);
-            showStatus('token_out', `创建Token失败: ${errMsg}`, 'error');
+            let errorMsg = '创建 Token 失败';
+            if (r.status === 400) errorMsg = '创建 Token 失败：参数缺失';
+            else if (r.status === 401) errorMsg = '创建 Token 失败：未授权';
+            else if (r.status === 500) errorMsg = '创建 Token 失败：服务器内部错误';
+            showStatus('token_out', `❌ ${errorMsg}`, 'error');
         }
-    } catch(e) { showStatus('token_out', `创建Token失败: ${e.message}`, 'error'); }
+    } catch(e) { showStatus('token_out', `❌ 创建 Token 失败：${e.message}`, 'error'); }
 }
 
 async function deleteToken(id) {
@@ -488,14 +498,16 @@ async function deleteToken(id) {
             credentials: 'include'
         });
         if (r.ok) {
-            const j = await r.json();
-            showStatus('token_out', `✅ ${j.message}`, 'success');
+            showStatus('token_out', `✅ 编号 ${id} 的 Token 删除`, 'success');
             loadTokens();
         } else {
-            const errMsg = await parseResponseError(r);
-            showStatus('token_out', `删除Token失败: ${errMsg}`, 'error');
+            if (r.status === 404) {
+                showStatus('token_out', `❌ 编号 ${id} 的 Token 不存在`, 'error');
+            } else {
+                showStatus('token_out', '❌ 删除 Token 失败', 'error');
+            }
         }
-    } catch(e) { showStatus('token_out', `删除Token失败: ${e.message}`, 'error'); }
+    } catch(e) { showStatus('token_out', `❌ 删除 Token 失败：${e.message}`, 'error'); }
 }
 
 async function getFile() {
@@ -526,15 +538,20 @@ async function getFile() {
                     <a href="${j.download_url}" target="_blank" rel="noopener noreferrer">⬇️ 点击打开/下载文件</a>
                     <span class="result-link">${j.download_url}</span>
                 </div>`;
-            showStatus('out', `✅ ${j.message}`, 'success');
+            showStatus('out', `✅ 文件 ${j.filename} 下载`, 'success');
         } else {
             resultDiv.innerHTML = '';
-            const errMsg = await parseResponseError(r);
-            showStatus('out', `文件${d.filename}下载失败: ${errMsg}`, 'error');
+            let errorMsg = '文件下载失败';
+            if (r.status === 400) errorMsg = `文件 ${d.filename} 下载失败：参数缺失`;
+            else if (r.status === 401) errorMsg = `文件 ${d.filename} 下载失败：Token 无效`;
+            else if (r.status === 404) errorMsg = `文件 ${d.filename} 下载失败：文件不存在`;
+            else if (r.status === 504) errorMsg = `文件 ${d.filename} 下载失败：获取超时`;
+            else if (r.status === 502) errorMsg = `文件 ${d.filename} 下载失败：网关错误`;
+            showStatus('out', `❌ ${errorMsg}`, 'error');
         }
     } catch(e) { 
         resultDiv.innerHTML = '';
-        showStatus('out', `文件${d.filename}下载失败: ${e.message}`, 'error'); 
+        showStatus('out', `❌ 文件 ${d.filename} 下载失败：${e.message}`, 'error'); 
     }
 }
 
@@ -562,15 +579,16 @@ async function adminResetDatabase() {
         });
 
         if (res.ok) {
-            const j = await res.json();
-            showStatus('db_reset_status', `✅ ${j.message}`, 'success');
+            showStatus('db_reset_status', '✅ 数据库重置成功', 'success');
             setTimeout(() => { closeDbReset(); }, 3000);
         } else {
-            const errMsg = await parseResponseError(res);
-            showStatus('db_reset_status', `数据库重置失败: ${errMsg}`, 'error');
+            let errorMsg = '数据库重置失败';
+            if (res.status === 401) errorMsg = '数据库重置失败：密码错误';
+            else if (res.status === 500) errorMsg = '数据库重置失败：服务器内部错误';
+            showStatus('db_reset_status', `❌ ${errorMsg}`, 'error');
         }
     } catch (e) {
-        showStatus('db_reset_status', `数据库重置失败: ${e.message}`, 'error');
+        showStatus('db_reset_status', `❌ 数据库重置失败：${e.message}`, 'error');
     } finally {
         btn.disabled = false;
         btn.textContent = '确认重置';
