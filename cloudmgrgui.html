@@ -76,10 +76,7 @@
             width: 100%; padding: 12px 16px; background: var(--input-bg); border: 1px solid var(--input-border); 
             border-radius: 12px; color: var(--text); font-size: 0.95rem; transition: all 0.25s ease; margin-bottom: 16px; backdrop-filter: blur(5px);
         }
-        input:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
+        input:disabled { opacity: 0.6; cursor: not-allowed; }
         input:focus { border-color: var(--primary); background: rgba(15, 23, 42, 0.8); box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.15); }
 
         .btn-group { display: flex; gap: 12px; }
@@ -159,7 +156,6 @@
 </head>
 <body>
     <div class="container">
-        <!-- 登录卡片 -->
         <div class="card" id="login_card">
             <div class="card-header">
                 <h2>🔑 管理员登录</h2>
@@ -177,11 +173,9 @@
             </div>
         </div>
 
-        <!-- 密码生成卡片 -->
         <div class="card" id="passgen_card" style="display: none;">
             <div class="card-header">
                 <h2>🔑 SHA256 密码生成器</h2>
-                <!-- 修复：使用了 HTML 实体 &#10005; 确保只会显示 x 而不是变成文字 -->
                 <button class="close-btn" onclick="closePassgen()">&#10005;</button>
             </div>
             <label>输入明文密码 (用于配置环境变量 PASSWORD_HASH)</label>
@@ -191,7 +185,6 @@
             <input type="text" id="passgen_result" readonly placeholder="生成的哈希将显示在这里" style="background: rgba(0,0,0,0.5);">
         </div>
 
-        <!-- 数据库重置卡片 -->
         <div class="card" id="db_reset_card" style="display: none;">
             <div class="card-header">
                 <h2 style="color: var(--danger); display: flex; align-items: center; gap: 8px;">🔴 数据库重置</h2>
@@ -204,14 +197,12 @@
             </div>
             <label>确认密码 (PASSWORD_HASH)</label>
             <input type="password" id="db_reset_password" placeholder="输入管理员密码以重置数据库">
-            <!-- 🛠️ 修正：给确认按钮加上唯一 id，防止 JS 错误抓取到右上角的关闭按钮 -->
             <button id="reset_db_btn" onclick="adminResetDatabase()" style="background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); box-shadow: 0 4px 14px 0 rgba(220, 38, 38, 0.35);">确认重置</button>
             <div class="status-wrapper" id="db_reset_status_wrap" style="margin-top: 16px;">
                 <div id="db_reset_status"></div>
             </div>
         </div>
 
-        <!-- 下载链接卡片 -->
         <div class="card" id="download_card" style="display:none;">
             <h2>📥 获取下载链接</h2>
             <input type="text" id="token_id" placeholder="Token ID (如 a3f)">
@@ -222,7 +213,6 @@
             <div class="status-wrapper" id="out_wrap"><div id="out"></div></div>
         </div>
 
-        <!-- Token 管理卡片 -->
         <div class="card" id="token_card" style="display:none;">
             <h2>🛠️ Token 管理</h2>
             <input type="text" id="new_token_id" placeholder="新 Token ID (例如 mykey01)">
@@ -240,18 +230,26 @@ let sessionMgrToken = null;
 
 function getApiBase() { return document.getElementById('api_base').value.trim().replace(/\/$/, ''); }
 
-// 👇 首次加载页面时，自动检查 Cookie 登录状态
 window.addEventListener('load', function() {
+    document.getElementById('login_card').style.display = 'block';
+    showStatus('auth_status', '正在验证登录状态...', 'loading');
     checkLoginStatus();
 });
 
 async function checkLoginStatus() {
     try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+
         const r = await fetch(`${getApiBase()}/api/token/list`, {
-            credentials: 'include'
+            credentials: 'include',
+            signal: controller.signal
         });
+        clearTimeout(timeoutId);
+
         if (r.ok) {
-            // 1. 锁定输入框，变为退出登录状态
+            showStatus('auth_status', '✅ 已通过 Cookie 自动恢复登录状态 (7天内有效)', 'success');
+            
             const apiBaseInput = document.getElementById('api_base');
             const passwordInput = document.getElementById('password_input');
             const loginBtn = document.getElementById('login_btn');
@@ -262,14 +260,10 @@ async function checkLoginStatus() {
             loginBtn.innerText = '退出登录';
             loginBtn.onclick = adminLogout;
 
-            // 2. 展示管理卡片
+            document.getElementById('login_card').style.display = 'block';
             document.getElementById('download_card').style.display = 'block';
             document.getElementById('token_card').style.display = 'block';
-            
-            // 3. 状态提示
-            showStatus('auth_status', '✅ 已通过 Cookie 自动恢复登录状态 (7天内有效)', 'success');
 
-            // 4. 加载 Token 列表
             const list = await r.json();
             const tbody = document.getElementById('token_table');
             if (list.length === 0) {
@@ -284,11 +278,11 @@ async function checkLoginStatus() {
                 `).join('');
             }
         } else {
-            // Cookie 过期或无 Token，恢复为初始未登录状态
             resetLoginUiToDefault();
         }
     } catch (e) {
-        // 网络异常时保持静默
+        clearTimeout(timeoutId);
+        resetLoginUiToDefault();
     }
 }
 
@@ -303,6 +297,7 @@ function resetLoginUiToDefault() {
     loginBtn.innerText = '登录';
     loginBtn.onclick = adminLogin;
 
+    document.getElementById('login_card').style.display = 'block';
     document.getElementById('download_card').style.display = 'none';
     document.getElementById('token_card').style.display = 'none';
     document.getElementById('auth_status_wrap').classList.remove('show');
@@ -368,10 +363,7 @@ function showStatus(id, msg, type = 'success') {
 async function parseResponseError(res, defaultContext = '请求失败') {
     let serverErr = '';
     try { const text = await res.text(); try { const j = JSON.parse(text); serverErr = j.error || j.message || ''; } catch { serverErr = text; } } catch {}
-    const statusMap = { 400: '请求参数有误 (400)', 401: '未经授权或凭证无效 (401)', 403: '拒绝访问 / 权限不足 (403)', 404: '请求的接口/资源不存在 (404)', 500: '服务器内部错误 (500)', 502: '网关错误 (502)', 504: '网关超时 (504)' };
-    const statusText = statusMap[res.status] || `HTTP 错误 (${res.status})`;
-    if (serverErr) return `❌ ${defaultContext}: <strong>${serverErr}</strong><br><small style="opacity:0.8;">状态提示: ${statusText}</small>`;
-    return `❌ ${defaultContext}: <strong>${statusText}</strong>`;
+    return serverErr;
 }
 
 async function adminLogin() {
@@ -391,9 +383,9 @@ async function adminLogin() {
         });
 
         if (res.ok) {
-            showStatus('auth_status', `✅ 登录成功！令牌已通过 HttpOnly Cookie 安全保存。<br>有效期: 7天`, 'success');
+            const data = await res.json();
+            showStatus('auth_status', `✅ ${data.message}`, 'success');
             
-            // 登录成功后，锁定输入框，切换为退出登录
             const apiBaseInput = document.getElementById('api_base');
             const passwordInput = document.getElementById('password_input');
             apiBaseInput.disabled = true;
@@ -402,37 +394,44 @@ async function adminLogin() {
             btn.innerText = '退出登录';
             btn.onclick = adminLogout;
 
+            document.getElementById('login_card').style.display = 'block';
             document.getElementById('download_card').style.display = 'block';
             document.getElementById('token_card').style.display = 'block';
             loadTokens();
         } else {
-            const errHtml = await parseResponseError(res, '登录失败');
-            showStatus('auth_status', errHtml, 'error');
+            const errMsg = await parseResponseError(res);
+            showStatus('auth_status', `登录失败: ${errMsg}`, 'error');
         }
     } catch (e) {
-        showStatus('auth_status', '❌ 网络异常或服务不可用', 'error');
+        showStatus('auth_status', '登录失败: 网络异常或服务不可用', 'error');
     } finally {
         btn.disabled = false;
     }
 }
 
 async function adminLogout() {
-    // 调用后端销毁 mgr_token
     try {
-        await fetch(`${getApiBase()}/api/mgr/logout`, { method: 'POST', credentials: 'include' });
-    } catch (e) {}
+        const res = await fetch(`${getApiBase()}/api/mgr/logout`, { method: 'POST', credentials: 'include' });
+        if (res.ok) {
+            const data = await res.json();
+            showStatus('auth_status', `注销成功`, 'success');
+        } else {
+            const errMsg = await parseResponseError(res);
+            showStatus('auth_status', `注销失败: ${errMsg}`, 'error');
+        }
+    } catch (e) {
+        showStatus('auth_status', '注销失败: 网络异常', 'error');
+    }
     
-    // 前端 UI 恢复初始状态
     resetLoginUiToDefault();
-    showStatus('auth_status', '🔒 已退出登录，Mgr Token 已销毁。', 'success');
 }
 
 async function loadTokens() {
     try {
         const r = await fetch(`${getApiBase()}/api/token/list`, { credentials: 'include' });
         if (!r.ok) {
-            const errHtml = await parseResponseError(r, '加载 Token 列表失败');
-            showStatus('token_out', errHtml, 'error');
+            const errMsg = await parseResponseError(r);
+            showStatus('token_out', errMsg, 'error');
             return;
         }
         const list = await r.json();
@@ -448,7 +447,7 @@ async function loadTokens() {
                 <td><button class="btn-danger" onclick="deleteToken('${t.key_id}')">删除</button></td>
             </tr>
         `).join('');
-    } catch(e) { showStatus('token_out', `❌ 异常: ${e.message}`, 'error'); }
+    } catch(e) { showStatus('token_out', `加载Token列表失败: ${e.message}`, 'error'); }
 }
 
 async function createToken() {
@@ -464,23 +463,23 @@ async function createToken() {
             credentials: 'include'
         });
 
-        if (!r.ok) {
-            const errHtml = await parseResponseError(r, '创建失败');
-            showStatus('token_out', errHtml, 'error');
-            return;
+        if (r.ok) {
+            const j = await r.json();
+            const decoded = atob(j.token);
+            const secretKey = decoded.split(':')[1];
+            showStatus('token_out', `✅ ${j.message}`, 'success');
+            document.getElementById('new_token_id').value = '';
+            loadTokens(); 
+        } else {
+            const errMsg = await parseResponseError(r);
+            showStatus('token_out', `创建Token失败: ${errMsg}`, 'error');
         }
-        const j = await r.json();
-        const decoded = atob(j.token);
-        const secretKey = decoded.split(':')[1];
-        showStatus('token_out', `✅ 创建成功!<br>ID: <code>${tokenId}</code><div class="secret-row">Secret: <span id="sec_${Date.now()}" style="font-family:monospace;background:rgba(0,0,0,0.3);padding:3px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);">••••••••••••••••</span> <button class="toggle-btn" onclick="toggleSec('sec_${Date.now()}','${secretKey}',this)">显示</button></div><span class="hint">⚠️ 请立即保存 Secret，关闭后将无法再次查看！</span>`, 'success');
-        document.getElementById('new_token_id').value = '';
-        loadTokens(); 
-    } catch(e) { showStatus('token_out', `❌ 异常: ${e.message}`, 'error'); }
+    } catch(e) { showStatus('token_out', `创建Token失败: ${e.message}`, 'error'); }
 }
 
 async function deleteToken(id) {
     if (!confirm(`确定删除 Token ID "${id}"？`)) return;
-    showStatus('token_out', `正在删除 Token ${id}...`, 'loading');
+    showStatus('token_out', '正在删除 Token...', 'loading');
     try {
         const r = await fetch(`${getApiBase()}/api/token/del`, {
             method: 'POST',
@@ -488,14 +487,15 @@ async function deleteToken(id) {
             body: JSON.stringify({ token_id: id }),
             credentials: 'include'
         });
-        if (!r.ok) {
-            const errHtml = await parseResponseError(r, '删除失败');
-            showStatus('token_out', errHtml, 'error');
-            return;
+        if (r.ok) {
+            const j = await r.json();
+            showStatus('token_out', `✅ ${j.message}`, 'success');
+            loadTokens();
+        } else {
+            const errMsg = await parseResponseError(r);
+            showStatus('token_out', `删除Token失败: ${errMsg}`, 'error');
         }
-        showStatus('token_out', `✅ Token <code>${id}</code> 已成功删除`, 'success');
-        loadTokens();
-    } catch(e) { showStatus('token_out', `❌ 异常: ${e.message}`, 'error'); }
+    } catch(e) { showStatus('token_out', `删除Token失败: ${e.message}`, 'error'); }
 }
 
 async function getFile() {
@@ -515,26 +515,26 @@ async function getFile() {
             credentials: 'include'
         });
 
-        if (!r.ok) {
+        if (r.ok) {
+            const j = await r.json();
+            resultDiv.innerHTML = `
+                <div class="result-card">
+                    <div class="result-header">
+                        <strong>📄 ${j.filename}</strong>
+                        <button class="close-btn" onclick="this.closest('.result-card').remove()" title="关闭">×</button>
+                    </div>
+                    <a href="${j.download_url}" target="_blank" rel="noopener noreferrer">⬇️ 点击打开/下载文件</a>
+                    <span class="result-link">${j.download_url}</span>
+                </div>`;
+            showStatus('out', `✅ ${j.message}`, 'success');
+        } else {
             resultDiv.innerHTML = '';
-            const errHtml = await parseResponseError(r, '获取链接失败');
-            showStatus('out', errHtml, 'error');
-            return;
+            const errMsg = await parseResponseError(r);
+            showStatus('out', `文件${d.filename}下载失败: ${errMsg}`, 'error');
         }
-        const j = await r.json();
-        resultDiv.innerHTML = `
-            <div class="result-card">
-                <div class="result-header">
-                    <strong>📄 ${j.filename}</strong>
-                    <button class="close-btn" onclick="this.closest('.result-card').remove()" title="关闭">×</button>
-                </div>
-                <a href="${j.download_url}" target="_blank" rel="noopener noreferrer">⬇️ 点击打开/下载文件</a>
-                <span class="result-link">${j.download_url}</span>
-            </div>`;
-        showStatus('out', '✅ 成功获取下载地址！', 'success');
     } catch(e) { 
         resultDiv.innerHTML = '';
-        showStatus('out', `❌ 异常: ${e.message}`, 'error'); 
+        showStatus('out', `文件${d.filename}下载失败: ${e.message}`, 'error'); 
     }
 }
 
@@ -544,7 +544,6 @@ function toggleSec(id, val, btn) {
     else { el.textContent = '••••••••••••••••'; btn.textContent = '显示'; }
 }
 
-// 🛠️ 修复：修改 adminResetDatabase 函数，使用 getElementById 精准定位
 async function adminResetDatabase() {
     const btn = document.getElementById('reset_db_btn');
     const plainPassword = document.getElementById('db_reset_password').value.trim();
@@ -563,16 +562,15 @@ async function adminResetDatabase() {
         });
 
         if (res.ok) {
-            showStatus('db_reset_status', `✅ 数据库重置成功！表已重新初始化。`, 'success');
-            setTimeout(() => {
-                closeDbReset();
-            }, 3000);
+            const j = await res.json();
+            showStatus('db_reset_status', `✅ ${j.message}`, 'success');
+            setTimeout(() => { closeDbReset(); }, 3000);
         } else {
-            const errHtml = await parseResponseError(res, '数据库重置失败');
-            showStatus('db_reset_status', errHtml, 'error');
+            const errMsg = await parseResponseError(res);
+            showStatus('db_reset_status', `数据库重置失败: ${errMsg}`, 'error');
         }
     } catch (e) {
-        showStatus('db_reset_status', '❌ 网络异常或服务不可用', 'error');
+        showStatus('db_reset_status', `数据库重置失败: ${e.message}`, 'error');
     } finally {
         btn.disabled = false;
         btn.textContent = '确认重置';
