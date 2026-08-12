@@ -76,6 +76,10 @@
             width: 100%; padding: 12px 16px; background: var(--input-bg); border: 1px solid var(--input-border); 
             border-radius: 12px; color: var(--text); font-size: 0.95rem; transition: all 0.25s ease; margin-bottom: 16px; backdrop-filter: blur(5px);
         }
+        input:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
         input:focus { border-color: var(--primary); background: rgba(15, 23, 42, 0.8); box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.15); }
 
         .btn-group { display: flex; gap: 12px; }
@@ -177,7 +181,8 @@
         <div class="card" id="passgen_card" style="display: none;">
             <div class="card-header">
                 <h2>🔑 SHA256 密码生成器</h2>
-                <button class="close-btn" onclick="closePassgen()">×</button>
+                <!-- 修复：使用了 HTML 实体 &#10005; 确保只会显示 x 而不是变成文字 -->
+                <button class="close-btn" onclick="closePassgen()">&#10005;</button>
             </div>
             <label>输入明文密码 (用于配置环境变量 PASSWORD_HASH)</label>
             <input type="text" id="passgen_input" placeholder="输入明文密码以生成哈希">
@@ -190,7 +195,7 @@
         <div class="card" id="db_reset_card" style="display: none;">
             <div class="card-header">
                 <h2 style="color: var(--danger); display: flex; align-items: center; gap: 8px;">🔴 数据库重置</h2>
-                <button class="close-btn" onclick="closeDbReset()">×</button>
+                <button class="close-btn" onclick="closeDbReset()">&#10005;</button>
             </div>
             <div style="background: rgba(220, 38, 38, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 12px; padding: 14px 18px; margin-bottom: 20px; color: #fca5a5; line-height: 1.6; backdrop-filter: blur(5px);">
                 <div style="font-weight: 600; margin-bottom: 4px;">⚠️ 高危操作警告</div>
@@ -199,7 +204,8 @@
             </div>
             <label>确认密码 (PASSWORD_HASH)</label>
             <input type="password" id="db_reset_password" placeholder="输入管理员密码以重置数据库">
-            <button onclick="adminResetDatabase()" style="background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); box-shadow: 0 4px 14px 0 rgba(220, 38, 38, 0.35);">确认重置</button>
+            <!-- 🛠️ 修正：给确认按钮加上唯一 id，防止 JS 错误抓取到右上角的关闭按钮 -->
+            <button id="reset_db_btn" onclick="adminResetDatabase()" style="background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); box-shadow: 0 4px 14px 0 rgba(220, 38, 38, 0.35);">确认重置</button>
             <div class="status-wrapper" id="db_reset_status_wrap" style="margin-top: 16px;">
                 <div id="db_reset_status"></div>
             </div>
@@ -241,22 +247,29 @@ window.addEventListener('load', function() {
 
 async function checkLoginStatus() {
     try {
-        // 用 List 接口测试 Cookie 是否有效
         const r = await fetch(`${getApiBase()}/api/token/list`, {
             credentials: 'include'
         });
         if (r.ok) {
-            // 1. 隐藏登录卡片
-            document.getElementById('login_card').style.display = 'none';
-            document.getElementById('passgen_card').style.display = 'none';
-            document.getElementById('db_reset_card').style.display = 'none';
-            
-            // 2. 显示管理卡片
+            // 1. 锁定输入框，变为退出登录状态
+            const apiBaseInput = document.getElementById('api_base');
+            const passwordInput = document.getElementById('password_input');
+            const loginBtn = document.getElementById('login_btn');
+
+            apiBaseInput.disabled = true;
+            passwordInput.disabled = true;
+            passwordInput.value = '';
+            loginBtn.innerText = '退出登录';
+            loginBtn.onclick = adminLogout;
+
+            // 2. 展示管理卡片
             document.getElementById('download_card').style.display = 'block';
             document.getElementById('token_card').style.display = 'block';
-            document.getElementById('logout_btn').style.display = 'inline-flex';
+            
+            // 3. 状态提示
+            showStatus('auth_status', '✅ 已通过 Cookie 自动恢复登录状态 (7天内有效)', 'success');
 
-            // 3. 直接加载 Token 列表数据
+            // 4. 加载 Token 列表
             const list = await r.json();
             const tbody = document.getElementById('token_table');
             if (list.length === 0) {
@@ -270,17 +283,30 @@ async function checkLoginStatus() {
                     </tr>
                 `).join('');
             }
-            showStatus('auth_status', '✅ 检测到已保存的登录状态，已自动恢复。', 'success');
         } else {
-            // 没有 Cookie 或已过期，什么都不做，停留在登录界面
-            document.getElementById('download_card').style.display = 'none';
-            document.getElementById('token_card').style.display = 'none';
-            document.getElementById('logout_btn').style.display = 'none';
-            document.getElementById('auth_status_wrap').classList.remove('show');
+            // Cookie 过期或无 Token，恢复为初始未登录状态
+            resetLoginUiToDefault();
         }
     } catch (e) {
-        // 网络异常时，保持登录界面静默
+        // 网络异常时保持静默
     }
+}
+
+function resetLoginUiToDefault() {
+    const apiBaseInput = document.getElementById('api_base');
+    const passwordInput = document.getElementById('password_input');
+    const loginBtn = document.getElementById('login_btn');
+
+    apiBaseInput.disabled = false;
+    passwordInput.disabled = false;
+    passwordInput.value = '';
+    loginBtn.innerText = '登录';
+    loginBtn.onclick = adminLogin;
+
+    document.getElementById('download_card').style.display = 'none';
+    document.getElementById('token_card').style.display = 'none';
+    document.getElementById('auth_status_wrap').classList.remove('show');
+    document.getElementById('token_table').innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:20px;">请先登录</td></tr>';
 }
 
 function checkTrigger(input) {
@@ -367,11 +393,17 @@ async function adminLogin() {
         if (res.ok) {
             showStatus('auth_status', `✅ 登录成功！令牌已通过 HttpOnly Cookie 安全保存。<br>有效期: 7天`, 'success');
             
-            // 登录成功后，隐藏登录卡，显示管理卡
-            document.getElementById('login_card').style.display = 'none';
+            // 登录成功后，锁定输入框，切换为退出登录
+            const apiBaseInput = document.getElementById('api_base');
+            const passwordInput = document.getElementById('password_input');
+            apiBaseInput.disabled = true;
+            passwordInput.disabled = true;
+            passwordInput.value = '';
+            btn.innerText = '退出登录';
+            btn.onclick = adminLogout;
+
             document.getElementById('download_card').style.display = 'block';
             document.getElementById('token_card').style.display = 'block';
-            document.getElementById('logout_btn').style.display = 'inline-flex';
             loadTokens();
         } else {
             const errHtml = await parseResponseError(res, '登录失败');
@@ -381,24 +413,18 @@ async function adminLogin() {
         showStatus('auth_status', '❌ 网络异常或服务不可用', 'error');
     } finally {
         btn.disabled = false;
-        btn.textContent = '登录';
     }
 }
 
 async function adminLogout() {
-    if (sessionMgrToken) { sessionMgrToken = null; }
+    // 调用后端销毁 mgr_token
     try {
         await fetch(`${getApiBase()}/api/mgr/logout`, { method: 'POST', credentials: 'include' });
     } catch (e) {}
-
-    document.getElementById('download_card').style.display = 'none';
-    document.getElementById('token_card').style.display = 'none';
-    document.getElementById('logout_btn').style.display = 'none';
-    document.getElementById('login_card').style.display = 'block'; // 恢复显示登录界面
-    document.getElementById('password_input').value = '';
-    document.getElementById('auth_status_wrap').classList.remove('show');
+    
+    // 前端 UI 恢复初始状态
+    resetLoginUiToDefault();
     showStatus('auth_status', '🔒 已退出登录，Mgr Token 已销毁。', 'success');
-    document.getElementById('token_table').innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:20px;">请先登录</td></tr>';
 }
 
 async function loadTokens() {
@@ -518,8 +544,9 @@ function toggleSec(id, val, btn) {
     else { el.textContent = '••••••••••••••••'; btn.textContent = '显示'; }
 }
 
+// 🛠️ 修复：修改 adminResetDatabase 函数，使用 getElementById 精准定位
 async function adminResetDatabase() {
-    const btn = document.querySelector('#db_reset_card button');
+    const btn = document.getElementById('reset_db_btn');
     const plainPassword = document.getElementById('db_reset_password').value.trim();
     if (!plainPassword) { showStatus('db_reset_status', '⚠️ 请输入管理员密码确认', 'error'); return; }
 
