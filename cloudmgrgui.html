@@ -205,7 +205,7 @@
 
         <div class="card" id="download_card" style="display:none;">
             <h2>📥 获取下载链接</h2>
-            <input type="text" id="token_id" placeholder="Token ID (如 a3f)">
+            <input type="text" id="token_id" placeholder="Token ID (如 001)">
             <input type="password" id="token_secret" placeholder="Token Secret (64位十六进制)">
             <input type="text" id="fname" placeholder="文件名">
             <button onclick="getFile()">获取链接</button>
@@ -215,7 +215,7 @@
 
         <div class="card" id="token_card" style="display:none;">
             <h2>🛠️ Token 管理</h2>
-            <input type="text" id="new_token_id" placeholder="新 Token ID (例如 mykey01)">
+            <input type="text" id="new_token_desc" placeholder="新 Token 备注/描述 (如 mykey01)">
             <button onclick="createToken()">创建 Token</button>
             <div class="status-wrapper" id="token_out_wrap"><div id="token_out"></div></div>
             <table>
@@ -230,6 +230,7 @@ let sessionMgrToken = null;
 
 function getApiBase() { return document.getElementById('api_base').value.trim().replace(/\/$/, ''); }
 
+// 启动时检查登录态
 window.addEventListener('load', function() {
     document.getElementById('login_card').style.display = 'block';
     showStatus('auth_status', '正在验证登录状态...', 'loading');
@@ -271,9 +272,9 @@ async function checkLoginStatus() {
             } else {
                 tbody.innerHTML = list.map(t => `
                     <tr>
-                        <td><code>${t.key_id}</code></td>
-                        <td>${t.description}</td>
-                        <td><button class="btn-danger" onclick="deleteToken('${t.key_id}')">删除</button></td>
+                        <td><code>${t.token_id}</code></td>
+                        <td>${t.description || '-'}</td>
+                        <td><button class="btn-danger" onclick="deleteToken('${t.token_id}')">删除</button></td>
                     </tr>
                 `).join('');
             }
@@ -394,7 +395,7 @@ async function adminLogin() {
         } else {
             let errorMsg = '登录失败';
             if (res.status === 401) {
-                errorMsg = '登录失败：密码错误';
+                errorMsg = '登录失败：密码错误或未认证';
             } else if (res.status === 504) {
                 errorMsg = '登录失败：请求超时';
             } else if (res.status === 500) {
@@ -420,7 +421,6 @@ async function adminLogout() {
     } catch (e) {
         showStatus('auth_status', '❌ 注销失败：网络异常', 'error');
     }
-    
     resetLoginUiToDefault();
 }
 
@@ -439,43 +439,39 @@ async function loadTokens() {
         }
         tbody.innerHTML = list.map(t => `
             <tr>
-                <td><code>${t.key_id}</code></td>
-                <td>${t.description}</td>
-                <td><button class="btn-danger" onclick="deleteToken('${t.key_id}')">删除</button></td>
+                <td><code>${t.token_id}</code></td>
+                <td>${t.description || '-'}</td>
+                <td><button class="btn-danger" onclick="deleteToken('${t.token_id}')">删除</button></td>
             </tr>
         `).join('');
     } catch(e) { showStatus('token_out', `❌ 加载 Token 列表失败：${e.message}`, 'error'); }
 }
 
 async function createToken() {
-    const tokenId = document.getElementById('new_token_id').value.trim();
-    if (!tokenId) { showStatus('token_out', '⚠️ 请输入新 Token ID', 'error'); return; }
+    const description = document.getElementById('new_token_desc').value.trim();
+    if (!description) { showStatus('token_out', '⚠️ 请输入新 Token 的描述或备注', 'error'); return; }
 
     showStatus('token_out', '正在创建 Token...', 'loading');
     try {
         const r = await fetch(`${getApiBase()}/api/token/add`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token_id: tokenId }),
+            body: JSON.stringify({ description: description }),
             credentials: 'include'
         });
 
         if (r.ok) {
             const j = await r.json();
-            // 提取 token_id
-            const msgParts = j.message.split(' ');
-            const id = msgParts[1];
+            const token_id = j.token_id;
+            const secret_key = j.secret;
             
-            showStatus('token_out', `✅ 编号 ${id} 的 Token 创建`, 'success');
+            showStatus('token_out', `✅ 编号 ${token_id} 的 Token 创建`, 'success');
             
-            const decoded = atob(j.token);
-            const secretKey = decoded.split(':')[1];
             const sid = 'sec_' + Date.now();
-            // 动态展示创建成功凭证
-            const secretHtml = `<div class="secret-row">Secret: <span id="${sid}" style="font-family:monospace;background:rgba(0,0,0,0.3);padding:3px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);">••••••••••••••••</span> <button class="toggle-btn" onclick="toggleSec('${sid}','${secretKey}',this)">显示</button></div><span class="hint">⚠️ 请立即保存 Secret，关闭后将无法再次查看！</span>`;
+            const secretHtml = `<div class="secret-row">Secret: <span id="${sid}" style="font-family:monospace;background:rgba(0,0,0,0.3);padding:3px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);">••••••••••••••••</span> <button class="toggle-btn" onclick="toggleSec('${sid}','${secret_key}',this)">显示</button></div><span class="hint">⚠️ 请立即保存 Secret，关闭后将无法再次查看！</span>`;
             document.querySelector('#token_out .status-content').innerHTML += secretHtml;
             
-            document.getElementById('new_token_id').value = '';
+            document.getElementById('new_token_desc').value = '';
             loadTokens(); 
         } else {
             let errorMsg = '创建 Token 失败';
@@ -542,11 +538,10 @@ async function getFile() {
         } else {
             resultDiv.innerHTML = '';
             let errorMsg = '文件下载失败';
-            if (r.status === 400) errorMsg = `文件 ${d.filename} 下载失败：参数缺失`;
-            else if (r.status === 401) errorMsg = `文件 ${d.filename} 下载失败：Token 无效`;
+            if (r.status === 401) errorMsg = `文件 ${d.filename} 下载失败：Token 无效或未认证`;
             else if (r.status === 404) errorMsg = `文件 ${d.filename} 下载失败：文件不存在`;
-            else if (r.status === 504) errorMsg = `文件 ${d.filename} 下载失败：获取超时`;
             else if (r.status === 502) errorMsg = `文件 ${d.filename} 下载失败：网关错误`;
+            else if (r.status === 504) errorMsg = `文件 ${d.filename} 下载失败：获取超时`;
             showStatus('out', `❌ ${errorMsg}`, 'error');
         }
     } catch(e) { 
